@@ -1,0 +1,473 @@
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  SafeAreaView,
+  ScrollView,
+  TouchableOpacity,
+  Image,
+  Modal,
+  Alert,
+} from 'react-native';
+import { theme } from '../../styles/theme';
+import { commonStyles } from '../../styles/commonStyles';
+import { User, ChargingStation, Booking, NavigationMode } from '../../types';
+
+interface HomeScreenProps {
+  onNavigateToMaps: (mode?: NavigationMode) => void;
+}
+
+export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToMaps }) => {
+  const [user, setUser] = useState<User>({
+    id: '1',
+    name: 'John Doe',
+    email: 'john.doe@example.com',
+  });
+  const [activeBooking, setActiveBooking] = useState<Booking | null>(null);
+  const [showQRModal, setShowQRModal] = useState(false);
+
+  // Simulate booking process (would be replaced with actual API calls)
+  const simulateBookingProcess = async () => {
+    try {
+      // Simulate payment processing
+      Alert.alert('Processing Payment', 'Please wait while we process your payment...');
+      
+      // Simulate API call to backend for QR code generation
+      setTimeout(() => {
+        const mockBooking: Booking = {
+          id: Date.now().toString(),
+          userId: user.id,
+          slotId: 'slot-001',
+          vehicleId: 'vehicle-001',
+          startTime: new Date(),
+          endTime: new Date(Date.now() + 2 * 60 * 60 * 1000), // 2 hours from now
+          totalAmount: 120,
+          status: 'confirmed',
+          qrCode: 'QR_CODE_DATA_HERE',
+          qrCodeValid: true,
+          paymentStatus: 'completed',
+        };
+        
+        setActiveBooking(mockBooking);
+        Alert.alert('Booking Confirmed!', 'Your parking slot has been reserved. QR code is now visible in the header.', [
+          { text: 'View QR Code', onPress: () => setShowQRModal(true) },
+          { text: 'OK' },
+        ]);
+      }, 2000);
+    } catch (error) {
+      Alert.alert('Booking Failed', 'There was an error processing your booking. Please try again.');
+    }
+  };
+  return (
+    <SafeAreaView style={commonStyles.safeArea}>
+      <ScrollView
+        contentContainerStyle={{ flexGrow: 1, padding: theme.spacing.lg }}
+        showsVerticalScrollIndicator={false}>
+        
+        {/* Header */}
+        <View style={[commonStyles.headerContainer, { marginBottom: theme.spacing.xl, borderBottomWidth: 0, paddingHorizontal: 0 }]}>
+          <View>
+            <Text style={[commonStyles.headerTitle, { fontSize: theme.typography.fontSizes['2xl'], color: theme.colors.text.primary }]}>
+              Hi {user.name.split(' ')[0]}! 👋
+            </Text>
+            <Text style={[commonStyles.headerSubtitle, { color: theme.colors.text.secondary }]}>
+              Find your perfect parking spot
+            </Text>
+          </View>
+          {activeBooking && activeBooking.qrCode && (
+            <TouchableOpacity 
+              onPress={() => setShowQRModal(true)}
+              style={{ 
+                backgroundColor: activeBooking.qrCodeValid ? theme.colors.success : theme.colors.text.tertiary,
+                borderRadius: 20,
+                padding: theme.spacing.sm,
+                paddingHorizontal: theme.spacing.base
+              }}>
+              <Text style={{ color: theme.colors.surface, fontSize: 12, fontWeight: '600' }}>
+                {activeBooking.qrCodeValid ? '🅿️ Active' : '🅿️ Used'}
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* Available EV Charging Stations */}
+        <View style={{ marginBottom: theme.spacing.xl }}>
+          <Text style={{
+            fontSize: theme.typography.fontSizes.lg,
+            fontWeight: theme.typography.fontWeights.semibold as any,
+            color: theme.colors.text.primary,
+            marginBottom: theme.spacing.base,
+          }}>Available EV Charging Stations</Text>
+          
+          <ScrollView 
+            horizontal 
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ paddingRight: theme.spacing.lg }}
+          >
+            {[
+              { name: 'Central Mall Station', distance: 0.3, slots: 8, total: 10, speed: 'Fast', price: 45 },
+              { name: 'City Plaza Hub', distance: 0.7, slots: 5, total: 8, speed: 'Rapid', price: 60 },
+              { name: 'Tech Park Station', distance: 1.2, slots: 12, total: 15, speed: 'Fast', price: 50 },
+            ].map((station, index) => (
+              <View key={index} style={[
+                commonStyles.card,
+                { 
+                  backgroundColor: theme.colors.backgroundCard,
+                  borderLeftWidth: 4,
+                  borderLeftColor: theme.colors.success,
+                  marginRight: theme.spacing.base,
+                  width: 200,
+                }
+              ]}>
+                <Text style={{
+                  fontSize: theme.typography.fontSizes.base,
+                  fontWeight: theme.typography.fontWeights.semibold as any,
+                  color: theme.colors.text.primary,
+                  marginBottom: theme.spacing.xs,
+                }}>{station.name}</Text>
+                <Text style={{
+                  fontSize: theme.typography.fontSizes.sm,
+                  color: theme.colors.text.secondary,
+                  marginBottom: theme.spacing.xs,
+                }}>{station.slots}/{station.total} available • {station.speed} charging</Text>
+                <View style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                }}>
+                  <Text style={{
+                    fontSize: theme.typography.fontSizes.sm,
+                    color: theme.colors.success,
+                    fontWeight: theme.typography.fontWeights.semibold as any,
+                  }}>₹{station.price}/hr</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Text style={{ fontSize: 12, marginRight: 4 }}>⚡</Text>
+                    <Text style={{
+                      fontSize: theme.typography.fontSizes.xs,
+                      color: theme.colors.text.tertiary,
+                    }}>{station.distance} km</Text>
+                  </View>
+                </View>
+              </View>
+            ))}
+          </ScrollView>
+        </View>
+
+        {/* Available Parking Spaces */}
+        <View style={{ marginBottom: theme.spacing.xl }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: theme.spacing.base }}>
+            <View style={{ alignItems: 'center' }}>
+              <Text style={{ fontSize: theme.typography.fontSizes['2xl'], fontWeight: 'bold', color: theme.colors.text.primary }}>112</Text>
+              <Text style={{ fontSize: theme.typography.fontSizes.sm, color: theme.colors.text.secondary }}>Available</Text>
+            </View>
+            <View style={{ alignItems: 'center' }}>
+              <Text style={{ fontSize: theme.typography.fontSizes['2xl'], fontWeight: 'bold', color: theme.colors.text.primary }}>119</Text>
+              <Text style={{ fontSize: theme.typography.fontSizes.sm, color: theme.colors.text.secondary }}>Available</Text>
+            </View>
+          </View>
+          
+          {/* Car illustrations */}
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: theme.spacing.base }}>
+            <View style={{ backgroundColor: theme.colors.accent, borderRadius: theme.borderRadius.base, padding: theme.spacing.sm, alignItems: 'center', width: '22%' }}>
+              <Image source={require('../../assets/userprofile.png')} style={{ width: 40, height: 40 }} />
+            </View>
+            <View style={{ backgroundColor: theme.colors.accent, borderRadius: theme.borderRadius.base, padding: theme.spacing.sm, alignItems: 'center', width: '22%' }}>
+              <Image source={require('../../assets/userprofile.png')} style={{ width: 40, height: 40 }} />
+            </View>
+            <View style={{ backgroundColor: theme.colors.accent, borderRadius: theme.borderRadius.base, padding: theme.spacing.sm, alignItems: 'center', width: '22%' }}>
+              <Image source={require('../../assets/userprofile.png')} style={{ width: 40, height: 40 }} />
+            </View>
+            <View style={{ backgroundColor: theme.colors.accent, borderRadius: theme.borderRadius.base, padding: theme.spacing.sm, alignItems: 'center', width: '22%' }}>
+              <Image source={require('../../assets/userprofile.png')} style={{ width: 40, height: 40 }} />
+            </View>
+          </View>
+        </View>
+
+        {/* Continue Button */}
+        <TouchableOpacity 
+          onPress={simulateBookingProcess}
+          style={[commonStyles.button, { marginBottom: theme.spacing.xl }]}>
+          <Text style={[commonStyles.buttonText, { flexDirection: 'row', alignItems: 'center' }]}>Test Booking & QR →</Text>
+        </TouchableOpacity>
+
+        {/* Free Parking Available Section */}
+        <View style={{ marginBottom: theme.spacing.xl }}>
+          <Text style={{
+            fontSize: theme.typography.fontSizes.lg,
+            fontWeight: theme.typography.fontWeights.semibold as any,
+            color: theme.colors.text.primary,
+            marginBottom: theme.spacing.base,
+          }}>Free parking available</Text>
+          
+          <View style={[
+            commonStyles.card,
+            { 
+              backgroundColor: theme.colors.backgroundCard,
+              borderLeftWidth: 4,
+              borderLeftColor: theme.colors.success,
+            }
+          ]}>
+            <Text style={{
+              fontSize: theme.typography.fontSizes.base,
+              fontWeight: theme.typography.fontWeights.semibold as any,
+              color: theme.colors.text.primary,
+              marginBottom: theme.spacing.xs,
+            }}>Central Park Area</Text>
+            <Text style={{
+              fontSize: theme.typography.fontSizes.sm,
+              color: theme.colors.text.secondary,
+              marginBottom: theme.spacing.xs,
+            }}>Available for next 2 hours • 15 spots remaining</Text>
+            <View style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+            }}>
+              <Text style={{
+                fontSize: theme.typography.fontSizes.sm,
+                color: theme.colors.success,
+                fontWeight: theme.typography.fontWeights.semibold as any,
+                marginRight: theme.spacing.sm,
+              }}>FREE</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Image source={require('../../assets/map.png')} style={{ width: 12, height: 12, marginRight: 4 }} />
+                <Text style={{
+                  fontSize: theme.typography.fontSizes.xs,
+                  color: theme.colors.text.tertiary,
+                }}>0.3 km away</Text>
+              </View>
+            </View>
+          </View>
+        </View>
+
+        {/* Quick Actions */}
+        <View style={{ marginBottom: theme.spacing.xl }}>
+          <Text style={{
+            fontSize: theme.typography.fontSizes.lg,
+            fontWeight: theme.typography.fontWeights.semibold as any,
+            color: theme.colors.text.primary,
+            marginBottom: theme.spacing.base,
+          }}>Quick Actions</Text>
+          
+          <View style={{
+            flexDirection: 'row',
+            flexWrap: 'wrap',
+            justifyContent: 'space-between',
+          }}>
+            <TouchableOpacity
+              onPress={() => onNavigateToMaps('find')}
+              style={[
+                commonStyles.buttonAccent,
+                {
+                  width: '48%',
+                  marginBottom: theme.spacing.base,
+                  paddingVertical: theme.spacing.lg,
+                }
+              ]}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Image source={require('../../assets/Find_Parking.png')} style={{ width: 16, height: 16, marginRight: 8 }} />
+                <Text style={commonStyles.buttonAccentText}>Find Parking</Text>
+              </View>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              onPress={() => onNavigateToMaps('book')}
+              style={[
+                commonStyles.socialButton,
+                {
+                  width: '48%',
+                  marginBottom: theme.spacing.base,
+                  paddingVertical: theme.spacing.lg,
+                }
+              ]}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Image source={require('../../assets/Book_In_Advance.png')} style={{ width: 16, height: 16, marginRight: 8 }} />
+                <Text style={{ color: theme.colors.text.primary, fontWeight: theme.typography.fontWeights.semibold as any }}>
+                  Book in Advance
+                </Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Recent Parking */}
+        <View style={{ marginBottom: theme.spacing.xl }}>
+          <Text style={{
+            fontSize: theme.typography.fontSizes.lg,
+            fontWeight: theme.typography.fontWeights.semibold as any,
+            color: theme.colors.text.primary,
+            marginBottom: theme.spacing.base,
+          }}>Recent Parking</Text>
+          
+          <View style={[
+            commonStyles.card,
+            { 
+              alignItems: 'flex-start',
+            }
+          ]}>
+            <Text style={{
+              fontSize: theme.typography.fontSizes.base,
+              fontWeight: theme.typography.fontWeights.semibold as any,
+              color: theme.colors.text.primary,
+              marginBottom: theme.spacing.xs,
+            }}>Mall Plaza Parking</Text>
+            <Text style={{
+              fontSize: theme.typography.fontSizes.sm,
+              color: theme.colors.text.secondary,
+              marginBottom: theme.spacing.xs,
+            }}>Yesterday, 2:30 PM - 5:45 PM</Text>
+            <Text style={{
+              fontSize: theme.typography.fontSizes.sm,
+              color: theme.colors.primary,
+              fontWeight: theme.typography.fontWeights.medium as any,
+            }}>₹120</Text>
+          </View>
+        </View>
+
+        {/* Nearby Parking */}
+        <View>
+          <Text style={{
+            fontSize: theme.typography.fontSizes.lg,
+            fontWeight: theme.typography.fontWeights.semibold as any,
+            color: theme.colors.text.primary,
+            marginBottom: theme.spacing.base,
+          }}>Nearby Parking</Text>
+          
+          <TouchableOpacity style={[
+            commonStyles.card,
+            { 
+              alignItems: 'flex-start',
+              marginBottom: theme.spacing.sm,
+            }
+          ]}>
+            <Text style={{
+              fontSize: theme.typography.fontSizes.base,
+              fontWeight: theme.typography.fontWeights.semibold as any,
+              color: theme.colors.text.primary,
+              marginBottom: theme.spacing.xs,
+            }}>City Center Parking</Text>
+            <Text style={{
+              fontSize: theme.typography.fontSizes.sm,
+              color: theme.colors.text.secondary,
+              marginBottom: theme.spacing.xs,
+            }}>0.5 km away • Available slots: 25</Text>
+            <Text style={{
+              fontSize: theme.typography.fontSizes.sm,
+              color: theme.colors.primary,
+              fontWeight: theme.typography.fontWeights.medium as any,
+            }}>₹40/hour</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={[
+            commonStyles.card,
+            { 
+              alignItems: 'flex-start',
+            }
+          ]}>
+            <Text style={{
+              fontSize: theme.typography.fontSizes.base,
+              fontWeight: theme.typography.fontWeights.semibold as any,
+              color: theme.colors.text.primary,
+              marginBottom: theme.spacing.xs,
+            }}>Metro Station Parking</Text>
+            <Text style={{
+              fontSize: theme.typography.fontSizes.sm,
+              color: theme.colors.text.secondary,
+              marginBottom: theme.spacing.xs,
+            }}>1.2 km away • Available slots: 12</Text>
+            <Text style={{
+              fontSize: theme.typography.fontSizes.sm,
+              color: theme.colors.primary,
+              fontWeight: theme.typography.fontWeights.medium as any,
+            }}>₹30/hour</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+      
+      {/* QR Code Modal */}
+      <Modal
+        visible={showQRModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowQRModal(false)}
+      >
+        <View style={{
+          flex: 1,
+          backgroundColor: 'rgba(0,0,0,0.5)',
+          justifyContent: 'center',
+          alignItems: 'center',
+          padding: theme.spacing.lg,
+        }}>
+          <View style={{
+            backgroundColor: theme.colors.surface,
+            borderRadius: theme.borderRadius.xl,
+            padding: theme.spacing.xl,
+            alignItems: 'center',
+            width: '100%',
+            maxWidth: 320,
+          }}>
+            <Text style={{
+              fontSize: theme.typography.fontSizes.xl,
+              fontWeight: theme.typography.fontWeights.bold as any,
+              color: theme.colors.text.primary,
+              marginBottom: theme.spacing.base,
+              textAlign: 'center',
+            }}>Parking QR Code</Text>
+            
+            <View style={{
+              width: 200,
+              height: 200,
+              backgroundColor: theme.colors.backgroundSecondary,
+              borderRadius: theme.borderRadius.base,
+              justifyContent: 'center',
+              alignItems: 'center',
+              marginBottom: theme.spacing.lg,
+              borderWidth: 2,
+              borderColor: activeBooking?.qrCodeValid ? theme.colors.success : theme.colors.text.tertiary,
+            }}>
+              <Text style={{
+                fontSize: 48,
+                textAlign: 'center',
+              }}>📦</Text>
+              <Text style={{
+                fontSize: theme.typography.fontSizes.sm,
+                color: theme.colors.text.secondary,
+                textAlign: 'center',
+                marginTop: theme.spacing.xs,
+              }}>
+                {activeBooking?.qrCodeValid ? 'Scan to Check In' : 'QR Code Used'}
+              </Text>
+            </View>
+            
+            {activeBooking && (
+              <View style={{ alignItems: 'center', marginBottom: theme.spacing.base }}>
+                <Text style={{
+                  fontSize: theme.typography.fontSizes.base,
+                  color: theme.colors.text.primary,
+                  fontWeight: theme.typography.fontWeights.medium as any,
+                  marginBottom: theme.spacing.xs,
+                }}>Booking #{activeBooking.id}</Text>
+                <Text style={{
+                  fontSize: theme.typography.fontSizes.sm,
+                  color: activeBooking.qrCodeValid ? theme.colors.success : theme.colors.error,
+                  fontWeight: theme.typography.fontWeights.medium as any,
+                }}>
+                  Status: {activeBooking.qrCodeValid ? 'Active' : 'Used'}
+                </Text>
+              </View>
+            )}
+            
+            <TouchableOpacity
+              onPress={() => setShowQRModal(false)}
+              style={[
+                commonStyles.button,
+                { width: '100%' }
+              ]}
+            >
+              <Text style={commonStyles.buttonText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    </SafeAreaView>
+  );
+};
