@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -23,6 +23,9 @@ import {
   ValidationResult 
 } from '../utils/validation';
 import { handleSocialLogin as processSocialLogin } from '../utils/socialLogin';
+import auth from '@react-native-firebase/auth';
+import FirebaseConfig from '../config/firebase';
+import FirestoreService from '../services/FirestoreService';
 
 interface RegisterScreenProps {
   onNavigateToLogin: () => void;
@@ -34,6 +37,7 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ onNavigateToLogi
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [firebaseInitialized, setFirebaseInitialized] = useState(false);
   
   // Customer fields
   const [customerName, setCustomerName] = useState('');
@@ -58,6 +62,21 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ onNavigateToLogi
     businessAddress?: string;
     businessPhone?: string;
   }>({});
+
+  // Initialize Firebase on component mount
+  useEffect(() => {
+    const initializeFirebase = async () => {
+      try {
+        await FirebaseConfig.getInstance().initialize();
+        setFirebaseInitialized(true);
+      } catch (error) {
+        console.error('Failed to initialize Firebase:', error);
+        Alert.alert('Error', 'Failed to initialize app. Please check your internet connection.');
+      }
+    };
+
+    initializeFirebase();
+  }, []);
 
   const validateForm = (): boolean => {
     const newErrors: typeof errors = {};
@@ -126,29 +145,104 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ onNavigateToLogi
   };
   
   const handleRegister = async (): Promise<void> => {
-    if (!validateForm()) {
+    if (!validateForm() || !firebaseInitialized) {
+      if (!firebaseInitialized) {
+        Alert.alert('Error', 'App is still initializing. Please wait a moment.');
+      }
       return;
     }
     
     setIsLoading(true);
     
     try {
-      // TODO: Implement actual register logic
-      // Simulate API call
-      await new Promise<void>(res => setTimeout(() => res(), 2000));
+      // Create user with Firebase Auth
+      const userCredential = await auth().createUserWithEmailAndPassword(email, password);
+      const user = userCredential.user;
       
-      Alert.alert(
-        'Registration Successful!', 
-        'Your account has been created. Please login to continue.',
-        [
-          {
-            text: 'OK',
-            onPress: () => onNavigateToLogin()
-          }
-        ]
-      );
-    } catch (error) {
-      Alert.alert('Error', 'Registration failed. Please try again.');
+      if (user) {
+        const firestoreService = FirestoreService.getInstance();
+        const timestamp = new Date().toISOString();
+        
+        // Update display name based on user type
+        const displayName = userType === 'customer' ? customerName : ownerName;
+        await user.updateProfile({ displayName });
+        
+        // Create user profile in Firestore
+        await firestoreService.createOrUpdateUserProfile({
+          id: user.uid,
+          email: user.email || '',
+          displayName,
+          phoneNumber: userType === 'customer' ? phoneNumber : businessPhone,
+          isActive: true,
+        });
+        
+        // Create additional user data based on user type
+        if (userType === 'customer') {
+          // Store customer-specific data
+          await firestoreService.getFirestore().collection('customerProfiles').doc(user.uid).set({
+            fullName: customerName,
+            phoneNumber,
+            vehicleNumber,
+            createdAt: firestoreService.getFirestore().Timestamp.now(),
+          });
+        } else if (userType === 'owner') {
+          // Store owner-specific data
+          await firestoreService.getFirestore().collection('ownerProfiles').doc(user.uid).set({
+            ownerName,
+            businessName,
+            businessAddress,
+            businessPhone,
+            createdAt: firestoreService.getFirestore().Timestamp.now(),
+          });
+        }
+        
+        // Track registration activity
+        await firestoreService.trackUserActivity({
+          userId: user.uid,
+          type: 'register',
+          description: `User registered as ${userType}`,
+          metadata: {
+            userType,
+            timestamp,
+          },
+        });
+        
+        // Sign out after registration (user will need to sign in)
+        await auth().signOut();
+        
+        Alert.alert(
+          'Registration Successful!', 
+          'Your account has been created. Please login to continue.',
+          [
+            {
+              text: 'OK',
+              onPress: () => onNavigateToLogin()
+            }
+          ]
+        );
+      }
+    } catch (error: any) {
+      console.error('Registration error:', error);
+      
+      let errorMessage = 'Registration failed. Please try again.';
+      
+      // Handle specific Firebase Auth errors
+      switch (error.code) {
+        case 'auth/email-already-in-use':
+          errorMessage = 'This email address is already in use. Try logging in instead.';
+          break;
+        case 'auth/invalid-email':
+          errorMessage = 'Please enter a valid email address.';
+          break;
+        case 'auth/weak-password':
+          errorMessage = 'Password is too weak. Please use a stronger password.';
+          break;
+        case 'auth/network-request-failed':
+          errorMessage = 'Network error. Please check your internet connection.';
+          break;
+      }
+      
+      Alert.alert('Registration Failed', errorMessage);
     } finally {
       setIsLoading(false);
     }

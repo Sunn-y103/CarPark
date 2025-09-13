@@ -73,3 +73,13 @@ yarn-error.log
 !.yarn/releases
 !.yarn/sdks
 !.yarn/versions
+
+
+# --- React Native Firebase additions ---
+# Ignore native build outputs
+ios/build/
+android/app/build/
+
+# Keep Firebase configuration files tracked
+!ios/GoogleService-Info.plist
+!android/app/google-services.json

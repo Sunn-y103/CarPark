@@ -24,7 +24,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     window = UIWindow(frame: UIScreen.main.bounds)
 
     factory.startReactNative(
-      withModuleName: "Major_CarPark",
+      withModuleName: "CarPark",
       in: window,
       launchOptions: launchOptions
     )

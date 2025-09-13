@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,9 @@ import { commonStyles } from '../styles/commonStyles';
 import { LoadingScreen } from '../components/LoadingScreen';
 import { validateEmail, validatePassword, ValidationResult } from '../utils/validation';
 import { handleSocialLogin as processSocialLogin } from '../utils/socialLogin';
+import auth from '@react-native-firebase/auth';
+import FirebaseConfig from '../config/firebase';
+import FirestoreService from '../services/FirestoreService';
 
 interface LoginScreenProps {
   onNavigateToRegister: () => void;
@@ -25,12 +28,28 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onNavigateToRegister, 
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [firebaseInitialized, setFirebaseInitialized] = useState(false);
   
   // Error states
   const [errors, setErrors] = useState<{
     email?: string;
     password?: string;
   }>({});
+
+  // Initialize Firebase on component mount
+  useEffect(() => {
+    const initializeFirebase = async () => {
+      try {
+        await FirebaseConfig.getInstance().initialize();
+        setFirebaseInitialized(true);
+      } catch (error) {
+        console.error('Failed to initialize Firebase:', error);
+        Alert.alert('Error', 'Failed to initialize app. Please check your internet connection.');
+      }
+    };
+
+    initializeFirebase();
+  }, []);
 
   const validateForm = (): boolean => {
     const newErrors: typeof errors = {};
@@ -52,21 +71,75 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onNavigateToRegister, 
   };
   
   const handleLogin = async (): Promise<void> => {
-    if (!validateForm()) {
+    if (!validateForm() || !firebaseInitialized) {
+      if (!firebaseInitialized) {
+        Alert.alert('Error', 'App is still initializing. Please wait a moment.');
+      }
       return;
     }
     
     setIsLoading(true);
     
     try {
-      // TODO: Implement actual login logic
-      // Simulate API call
-      await new Promise<void>(res => setTimeout(() => res(), 1500));
+      // Sign in with Firebase Auth
+      const userCredential = await auth().signInWithEmailAndPassword(email, password);
+      const user = userCredential.user;
       
-      // Navigate to home screen after successful login
-      onNavigateToHome();
-    } catch (error) {
-      Alert.alert('Error', 'Login failed. Please check your credentials and try again.');
+      if (user) {
+        const firestoreService = FirestoreService.getInstance();
+        
+        // Update user profile
+        await firestoreService.createOrUpdateUserProfile({
+          id: user.uid,
+          email: user.email || '',
+          displayName: user.displayName || undefined,
+          phoneNumber: user.phoneNumber || undefined,
+          photoURL: user.photoURL || undefined,
+          isActive: true,
+        });
+        
+        // Track login activity
+        await firestoreService.trackUserActivity({
+          userId: user.uid,
+          type: 'login',
+          description: 'User logged in successfully',
+          metadata: {
+            method: 'email_password',
+            timestamp: new Date().toISOString(),
+          },
+        });
+        
+        // Navigate to home screen after successful login
+        onNavigateToHome();
+      }
+    } catch (error: any) {
+      console.error('Login error:', error);
+      
+      let errorMessage = 'Login failed. Please try again.';
+      
+      // Handle specific Firebase Auth errors
+      switch (error.code) {
+        case 'auth/user-not-found':
+          errorMessage = 'No account found with this email address.';
+          break;
+        case 'auth/wrong-password':
+          errorMessage = 'Incorrect password. Please try again.';
+          break;
+        case 'auth/invalid-email':
+          errorMessage = 'Please enter a valid email address.';
+          break;
+        case 'auth/user-disabled':
+          errorMessage = 'This account has been disabled.';
+          break;
+        case 'auth/too-many-requests':
+          errorMessage = 'Too many failed attempts. Please try again later.';
+          break;
+        case 'auth/network-request-failed':
+          errorMessage = 'Network error. Please check your internet connection.';
+          break;
+      }
+      
+      Alert.alert('Login Failed', errorMessage);
     } finally {
       setIsLoading(false);
     }

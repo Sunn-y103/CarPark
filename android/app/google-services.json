@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "743687708012",
+    "project_id": "carpark-c67df",
+    "storage_bucket": "carpark-c67df.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:743687708012:android:74a77405259d8b606b2749",
+        "android_client_info": {
+          "package_name": "com.major_carpark"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyANHplq1-m6DjuFzdjCar-JbrWk4OhpvB0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
