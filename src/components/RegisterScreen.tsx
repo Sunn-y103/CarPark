@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { theme } from '../styles/theme';
 import { commonStyles } from '../styles/commonStyles';
-import { LoadingScreen } from '../components/LoadingScreen';
+import { LoadingScreen } from './LoadingScreen';
 import { 
   validateFullName,
   validatePhoneNumber,
@@ -23,7 +23,9 @@ import {
   ValidationResult 
 } from '../utils/validation';
 import { handleSocialLogin as processSocialLogin } from '../utils/socialLogin';
+import { testFirebaseConnection, testNetworkConnection } from '../utils/networkTest';
 import auth from '@react-native-firebase/auth';
+import firestore from '@react-native-firebase/firestore';
 import FirebaseConfig from '../config/firebase';
 import FirestoreService from '../services/FirestoreService';
 
@@ -39,18 +41,15 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ onNavigateToLogi
   const [isLoading, setIsLoading] = useState(false);
   const [firebaseInitialized, setFirebaseInitialized] = useState(false);
   
-  // Customer fields
   const [customerName, setCustomerName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [vehicleNumber, setVehicleNumber] = useState('');
-  
-  // Owner fields
   const [businessName, setBusinessName] = useState('');
   const [businessAddress, setBusinessAddress] = useState('');
   const [businessPhone, setBusinessPhone] = useState('');
   const [ownerName, setOwnerName] = useState('');
   
-  // Error states
+  
   const [errors, setErrors] = useState<{
     customerName?: string;
     phoneNumber?: string;
@@ -63,7 +62,6 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ onNavigateToLogi
     businessPhone?: string;
   }>({});
 
-  // Initialize Firebase on component mount
   useEffect(() => {
     const initializeFirebase = async () => {
       try {
@@ -86,54 +84,45 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ onNavigateToLogi
       return false;
     }
     
-    // Validate email
     const emailValidation = validateEmail(email);
     if (!emailValidation.isValid) {
       newErrors.email = emailValidation.errorMessage;
     }
     
-    // Validate password
     const passwordValidation = validatePassword(password);
     if (!passwordValidation.isValid) {
       newErrors.password = passwordValidation.errorMessage;
     }
     
     if (userType === 'customer') {
-      // Validate customer name
       const nameValidation = validateFullName(customerName);
       if (!nameValidation.isValid) {
         newErrors.customerName = nameValidation.errorMessage;
       }
       
-      // Validate phone number
       const phoneValidation = validatePhoneNumber(phoneNumber);
       if (!phoneValidation.isValid) {
         newErrors.phoneNumber = phoneValidation.errorMessage;
       }
       
-      // Validate vehicle number
       const vehicleValidation = validateVehicleNumber(vehicleNumber);
       if (!vehicleValidation.isValid) {
         newErrors.vehicleNumber = vehicleValidation.errorMessage;
       }
     } else if (userType === 'owner') {
-      // Validate owner name
       const ownerNameValidation = validateFullName(ownerName);
       if (!ownerNameValidation.isValid) {
         newErrors.ownerName = ownerNameValidation.errorMessage;
       }
       
-      // Validate business name
       if (!businessName || businessName.trim().length === 0) {
         newErrors.businessName = 'Business name is required';
       }
       
-      // Validate business address
       if (!businessAddress || businessAddress.trim().length === 0) {
         newErrors.businessAddress = 'Business address is required';
       }
       
-      // Validate business phone
       const businessPhoneValidation = validatePhoneNumber(businessPhone);
       if (!businessPhoneValidation.isValid) {
         newErrors.businessPhone = businessPhoneValidation.errorMessage;
@@ -154,8 +143,23 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ onNavigateToLogi
     
     setIsLoading(true);
     
+    console.log('Testing network connectivity...');
+    const networkOk = await testNetworkConnection();
+    if (!networkOk) {
+      Alert.alert('No Internet Connection', 'Please check your internet connection and try again.');
+      setIsLoading(false);
+      return;
+    }
+    
+    console.log('Testing Firebase connectivity...');
+    const firebaseOk = await testFirebaseConnection();
+    if (!firebaseOk) {
+      Alert.alert('Service Unavailable', 'Unable to connect to registration services. Please try again later.');
+      setIsLoading(false);
+      return;
+    }
+    
     try {
-      // Create user with Firebase Auth
       const userCredential = await auth().createUserWithEmailAndPassword(email, password);
       const user = userCredential.user;
       
@@ -163,40 +167,35 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ onNavigateToLogi
         const firestoreService = FirestoreService.getInstance();
         const timestamp = new Date().toISOString();
         
-        // Update display name based on user type
         const displayName = userType === 'customer' ? customerName : ownerName;
         await user.updateProfile({ displayName });
         
-        // Create user profile in Firestore
         await firestoreService.createOrUpdateUserProfile({
           id: user.uid,
           email: user.email || '',
           displayName,
           phoneNumber: userType === 'customer' ? phoneNumber : businessPhone,
           isActive: true,
+          role: userType,
         });
         
-        // Create additional user data based on user type
         if (userType === 'customer') {
-          // Store customer-specific data
-          await firestoreService.getFirestore().collection('customerProfiles').doc(user.uid).set({
+          await firestoreService.createOrUpdateCustomerProfile({
+            userId: user.uid,
             fullName: customerName,
             phoneNumber,
             vehicleNumber,
-            createdAt: firestoreService.getFirestore().Timestamp.now(),
           });
         } else if (userType === 'owner') {
-          // Store owner-specific data
           await firestoreService.getFirestore().collection('ownerProfiles').doc(user.uid).set({
             ownerName,
             businessName,
             businessAddress,
             businessPhone,
-            createdAt: firestoreService.getFirestore().Timestamp.now(),
+            createdAt: firestore.Timestamp.now(),
           });
         }
         
-        // Track registration activity
         await firestoreService.trackUserActivity({
           userId: user.uid,
           type: 'register',
@@ -207,7 +206,6 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ onNavigateToLogi
           },
         });
         
-        // Sign out after registration (user will need to sign in)
         await auth().signOut();
         
         Alert.alert(
@@ -226,7 +224,6 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ onNavigateToLogi
       
       let errorMessage = 'Registration failed. Please try again.';
       
-      // Handle specific Firebase Auth errors
       switch (error.code) {
         case 'auth/email-already-in-use':
           errorMessage = 'This email address is already in use. Try logging in instead.';
@@ -238,7 +235,13 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ onNavigateToLogi
           errorMessage = 'Password is too weak. Please use a stronger password.';
           break;
         case 'auth/network-request-failed':
-          errorMessage = 'Network error. Please check your internet connection.';
+          errorMessage = 'Network error. Please check your internet connection and make sure you are connected to the internet. If using emulator, try restarting it.';
+          break;
+        case 'auth/too-many-requests':
+          errorMessage = 'Too many failed attempts. Please try again later.';
+          break;
+        default:
+          errorMessage = `Registration failed: ${error.message}`;
           break;
       }
       
@@ -253,7 +256,6 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ onNavigateToLogi
       const result = await processSocialLogin(provider);
       
       if (result.success && result.userData) {
-        // Auto-fill name, email, and password
         if (userType === 'customer') {
           setCustomerName(result.userData.name);
         } else if (userType === 'owner') {
@@ -262,7 +264,6 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ onNavigateToLogi
         setEmail(result.userData.email);
         setPassword(result.userData.password);
         
-        // Clear any existing errors for auto-filled fields
         setErrors(prev => ({
           ...prev,
           customerName: undefined,
@@ -288,13 +289,12 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ onNavigateToLogi
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled">
         
-        {/* Header */}
         <View style={{ alignItems: 'center', marginBottom: theme.spacing.xl }}>
           <Text style={commonStyles.title}>Join the Community</Text>
           <Text style={[commonStyles.subtitle, { marginBottom: theme.spacing.base }]}>Create your account to start parking</Text>
         </View>
 
-        {/* User Type Selection */}
+        
         <View style={{ width: '100%', marginBottom: theme.spacing.lg }}>
           <Text style={{
             fontSize: theme.typography.fontSizes.base,
@@ -600,49 +600,9 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ onNavigateToLogi
           </View>
         )}
 
-        {/* Divider */}
-        <View style={commonStyles.dividerContainer}>
-          <View style={commonStyles.divider} />
-          <Text style={commonStyles.dividerText}>Or continue with</Text>
-          <View style={commonStyles.divider} />
-        </View>
-
-        {/* Social Login Buttons */}
-        <View style={{
-          flexDirection: 'row',
-          width: '100%',
-          marginBottom: theme.spacing.lg,
-        }}>
-          <TouchableOpacity
-            style={[commonStyles.socialButton, { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }]}
-            onPress={() => handleSocialLogin('google')}>
-            <Image source={require('../assets/Google.png')} style={{ width: 20, height: 20, marginRight: 8 }} />
-            <Text style={{ color: theme.colors.text.primary, fontSize: theme.typography.fontSizes.base }}>
-              Google
-            </Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            style={[commonStyles.socialButton, { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }]}
-            onPress={() => handleSocialLogin('facebook')}>
-            <Image source={require('../assets/Facebook.png')} style={{ width: 20, height: 20, marginRight: 8 }} />
-            <Text style={{ color: theme.colors.text.primary, fontSize: theme.typography.fontSizes.base }}>
-              Facebook
-            </Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            style={[commonStyles.socialButton, { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }]}
-            onPress={() => handleSocialLogin('apple')}>
-            <Image source={require('../assets/Apple.png')} style={{ width: 20, height: 20, marginRight: 8 }} />
-            <Text style={{ color: theme.colors.text.primary, fontSize: theme.typography.fontSizes.base }}>
-              Apple
-            </Text>
-          </TouchableOpacity>
-        </View>
 
         {/* Navigate to Login */}
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: theme.spacing.lg }}>
           <Text style={{ color: theme.colors.text.secondary, fontSize: theme.typography.fontSizes.base }}>
             Already have an account?{' '}
           </Text>

@@ -27,11 +27,10 @@ class FirestoreService {
     return FirestoreService.instance;
   }
 
-  // ============ USER PROFILE METHODS ============
-  
-  /**
-   * Create or update user profile
-   */
+  public getFirestore(): FirebaseFirestoreTypes.Module {
+    return this.firestore;
+  }
+
   async createOrUpdateUserProfile(userProfile: Omit<UserProfile, 'createdAt' | 'updatedAt'>): Promise<void> {
     try {
       const userRef = this.firestore.collection(COLLECTIONS.USERS).doc(userProfile.id);
@@ -39,14 +38,12 @@ class FirestoreService {
       
       const timestamp = firestore.Timestamp.now();
       
-      if (userDoc.exists) {
-        // Update existing user
+      if (userDoc.exists()) {
         await userRef.update({
           ...userProfile,
           updatedAt: timestamp,
         });
       } else {
-        // Create new user
         await userRef.set({
           ...userProfile,
           createdAt: timestamp,
@@ -59,14 +56,11 @@ class FirestoreService {
     }
   }
 
-  /**
-   * Get user profile by ID
-   */
   async getUserProfile(userId: string): Promise<UserProfile | null> {
     try {
       const userDoc = await this.firestore.collection(COLLECTIONS.USERS).doc(userId).get();
       
-      if (userDoc.exists) {
+      if (userDoc.exists()) {
         return { id: userDoc.id, ...userDoc.data() } as UserProfile;
       }
       
@@ -77,11 +71,51 @@ class FirestoreService {
     }
   }
 
-  // ============ USER ACTIVITY METHODS ============
+  async createOrUpdateCustomerProfile(customerData: {
+    userId: string;
+    fullName: string;
+    phoneNumber?: string;
+    vehicleNumber?: string;
+  }): Promise<void> {
+    try {
+      const customerRef = this.firestore.collection('customerProfiles').doc(customerData.userId);
+      const customerDoc = await customerRef.get();
+      
+      const timestamp = firestore.Timestamp.now();
+      
+      if (customerDoc.exists()) {
+        await customerRef.update({
+          ...customerData,
+          updatedAt: timestamp,
+        });
+      } else {
+        await customerRef.set({
+          ...customerData,
+          createdAt: timestamp,
+          updatedAt: timestamp,
+        });
+      }
+    } catch (error) {
+      console.error('Error creating/updating customer profile:', error);
+      throw error;
+    }
+  }
 
-  /**
-   * Track user activity
-   */
+  async getCustomerProfile(userId: string): Promise<any | null> {
+    try {
+      const customerDoc = await this.firestore.collection('customerProfiles').doc(userId).get();
+      
+      if (customerDoc.exists()) {
+        return { id: customerDoc.id, ...customerDoc.data() };
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('Error getting customer profile:', error);
+      throw error;
+    }
+  }
+
   async trackUserActivity(activityData: CreateActivityData): Promise<string> {
     try {
       const activity: Omit<UserActivity, 'id'> = {
@@ -101,9 +135,6 @@ class FirestoreService {
     }
   }
 
-  /**
-   * Get user activities with pagination
-   */
   async getUserActivities(
     userId: string, 
     limit: number = 20, 
@@ -132,9 +163,6 @@ class FirestoreService {
     }
   }
 
-  /**
-   * Get user activities by type
-   */
   async getUserActivitiesByType(userId: string, activityType: ActivityType, limit: number = 10): Promise<UserActivity[]> {
     try {
       const snapshot = await this.firestore
@@ -155,11 +183,6 @@ class FirestoreService {
     }
   }
 
-  // ============ PARKING HISTORY METHODS ============
-
-  /**
-   * Create parking history record
-   */
   async createParkingHistory(parkingData: Omit<ParkingHistory, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
     try {
       const timestamp = firestore.Timestamp.now();
@@ -177,9 +200,6 @@ class FirestoreService {
     }
   }
 
-  /**
-   * Update parking history
-   */
   async updateParkingHistory(parkingId: string, updates: Partial<ParkingHistory>): Promise<void> {
     try {
       await this.firestore.collection(COLLECTIONS.PARKING_HISTORY).doc(parkingId).update({
@@ -192,9 +212,6 @@ class FirestoreService {
     }
   }
 
-  /**
-   * Get user parking history
-   */
   async getUserParkingHistory(userId: string, limit: number = 20): Promise<ParkingHistory[]> {
     try {
       const snapshot = await this.firestore
@@ -214,11 +231,6 @@ class FirestoreService {
     }
   }
 
-  // ============ WALLET TRANSACTION METHODS ============
-
-  /**
-   * Create wallet transaction
-   */
   async createWalletTransaction(transactionData: Omit<WalletTransaction, 'id'>): Promise<string> {
     try {
       const docRef = await this.firestore.collection(COLLECTIONS.WALLET_TRANSACTIONS).add(transactionData);
@@ -229,9 +241,6 @@ class FirestoreService {
     }
   }
 
-  /**
-   * Get user wallet transactions
-   */
   async getUserWalletTransactions(userId: string, limit: number = 50): Promise<WalletTransaction[]> {
     try {
       const snapshot = await this.firestore
@@ -251,11 +260,6 @@ class FirestoreService {
     }
   }
 
-  // ============ ANALYTICS METHODS ============
-
-  /**
-   * Update user analytics
-   */
   async updateUserAnalytics(userId: string, analytics: Partial<UserAnalytics>): Promise<void> {
     try {
       const analyticsRef = this.firestore.collection(COLLECTIONS.USER_ANALYTICS).doc(userId);
@@ -271,14 +275,11 @@ class FirestoreService {
     }
   }
 
-  /**
-   * Get user analytics
-   */
   async getUserAnalytics(userId: string): Promise<UserAnalytics | null> {
     try {
       const doc = await this.firestore.collection(COLLECTIONS.USER_ANALYTICS).doc(userId).get();
       
-      if (doc.exists) {
+      if (doc.exists()) {
         return { id: doc.id, ...doc.data() } as UserAnalytics;
       }
       
@@ -289,11 +290,6 @@ class FirestoreService {
     }
   }
 
-  // ============ UTILITY METHODS ============
-
-  /**
-   * Batch write operations
-   */
   async batchWrite(operations: Array<{ type: 'set' | 'update' | 'delete', ref: FirebaseFirestoreTypes.DocumentReference, data?: any }>): Promise<void> {
     try {
       const batch = this.firestore.batch();
@@ -319,9 +315,6 @@ class FirestoreService {
     }
   }
 
-  /**
-   * Listen to real-time updates for user activities
-   */
   subscribeToUserActivities(userId: string, callback: (activities: UserActivity[]) => void): () => void {
     const unsubscribe = this.firestore
       .collection(COLLECTIONS.USER_ACTIVITIES)

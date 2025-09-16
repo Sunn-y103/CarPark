@@ -12,27 +12,32 @@ import {
 import { theme } from '../../styles/theme';
 import { commonStyles } from '../../styles/commonStyles';
 import { User, ChargingStation, Booking, NavigationMode } from '../../types';
+import { useUserProfile } from '../../hooks/useUserProfile';
 
 interface HomeScreenProps {
   onNavigateToMaps: (mode?: NavigationMode) => void;
 }
 
 export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToMaps }) => {
-  const [user, setUser] = useState<User>({
-    id: '1',
-    name: 'John Doe',
-    email: 'john.doe@example.com',
-  });
+  const { user: profileUser } = useUserProfile();
   const [activeBooking, setActiveBooking] = useState<Booking | null>(null);
+  
+  const user = profileUser || {
+    id: '1',
+    name: 'User',
+    email: 'user@example.com',
+  };
   const [showQRModal, setShowQRModal] = useState(false);
 
-  // Simulate booking process (would be replaced with actual API calls)
   const simulateBookingProcess = async () => {
+    if (!user) {
+      Alert.alert('Error', 'Please log in to make a booking.');
+      return;
+    }
+    
     try {
-      // Simulate payment processing
       Alert.alert('Processing Payment', 'Please wait while we process your payment...');
       
-      // Simulate API call to backend for QR code generation
       setTimeout(() => {
         const mockBooking: Booking = {
           id: Date.now().toString(),
@@ -40,7 +45,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToMaps }) => {
           slotId: 'slot-001',
           vehicleId: 'vehicle-001',
           startTime: new Date(),
-          endTime: new Date(Date.now() + 2 * 60 * 60 * 1000), // 2 hours from now
+          endTime: new Date(Date.now() + 2 * 60 * 60 * 1000),
           totalAmount: 120,
           status: 'confirmed',
           qrCode: 'QR_CODE_DATA_HERE',
@@ -49,7 +54,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToMaps }) => {
         };
         
         setActiveBooking(mockBooking);
-        Alert.alert('Booking Confirmed!', 'Your parking slot has been reserved. QR code is now visible in the header.', [
+        Alert.alert('Booking Confirmed!', `Hi ${user.name.split(' ')[0]}! Your parking slot has been reserved. QR code is now visible in the header.`, [
           { text: 'View QR Code', onPress: () => setShowQRModal(true) },
           { text: 'OK' },
         ]);
@@ -61,16 +66,54 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToMaps }) => {
   return (
     <SafeAreaView style={commonStyles.safeArea}>
       <ScrollView
-        contentContainerStyle={{ flexGrow: 1, padding: theme.spacing.lg }}
+        contentContainerStyle={{ 
+          flexGrow: 1, 
+          padding: theme.spacing.lg,
+          paddingTop: theme.spacing.lg + theme.spacing.sm,
+          paddingBottom: theme.spacing.xl + theme.spacing.base
+        }}
         showsVerticalScrollIndicator={false}>
         
-        {/* Header */}
-        <View style={[commonStyles.headerContainer, { marginBottom: theme.spacing.xl, borderBottomWidth: 0, paddingHorizontal: 0 }]}>
-          <View>
-            <Text style={[commonStyles.headerTitle, { fontSize: theme.typography.fontSizes['2xl'], color: theme.colors.text.primary }]}>
+        <View style={{ 
+          alignItems: 'flex-start',
+          marginBottom: theme.spacing.sm
+        }}>
+          <Image 
+            source={require('../../assets/CarPark_Logo2.png')}
+            style={{ 
+              width: 90, 
+              height: 90,
+              borderRadius:25, 
+              resizeMode: 'contain'
+            }} 
+          />
+        </View>
+        
+        <View style={[commonStyles.headerContainer, {
+          marginBottom: theme.spacing.lg, 
+          borderBottomWidth: 0, 
+          paddingHorizontal: theme.spacing.base, 
+          paddingVertical: theme.spacing.base,
+          backgroundColor: theme.colors.backgroundCard,
+          borderRadius: theme.borderRadius.lg,
+          shadowColor: theme.colors.shadow,
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.1,
+          shadowRadius: 4,
+          elevation: 3
+        }]}>
+          <View style={{ justifyContent: 'center' }}>
+            <Text style={[commonStyles.headerTitle, { 
+              fontSize: theme.typography.fontSizes['2xl'], 
+              color: theme.colors.text.primary,
+              marginBottom: theme.spacing.xs
+            }]}>
               Hi {user.name.split(' ')[0]}! 👋
             </Text>
-            <Text style={[commonStyles.headerSubtitle, { color: theme.colors.text.secondary }]}>
+            <Text style={[commonStyles.headerSubtitle, { 
+              color: theme.colors.text.secondary,
+              fontSize: theme.typography.fontSizes.sm
+            }]}>
               Find your perfect parking spot
             </Text>
           </View>
@@ -90,7 +133,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToMaps }) => {
           )}
         </View>
 
-        {/* Available EV Charging Stations */}
         <View style={{ marginBottom: theme.spacing.xl }}>
           <Text style={{
             fontSize: theme.typography.fontSizes.lg,

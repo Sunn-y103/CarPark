@@ -50,7 +50,12 @@ export const WalletScreen: React.FC = () => {
   return (
     <SafeAreaView style={commonStyles.safeArea}>
       <ScrollView
-        contentContainerStyle={{ flexGrow: 1, padding: theme.spacing.lg }}
+        contentContainerStyle={{ 
+          flexGrow: 1, 
+          padding: theme.spacing.lg,
+          paddingTop: theme.spacing.xl + theme.spacing.sm,
+          paddingBottom: theme.spacing.xl + theme.spacing.base
+        }}
         showsVerticalScrollIndicator={false}>
         
         {/* Header */}
@@ -110,16 +115,33 @@ export const WalletScreen: React.FC = () => {
             onPressIn={() => setPressedButton('addMoney')}
             onPressOut={() => setPressedButton(null)}
             style={[
-              commonStyles.button,
+              {
+                backgroundColor: pressedButton === 'addMoney' ? theme.colors.primary : theme.colors.surface,
+                borderRadius: theme.borderRadius.lg,
+                paddingVertical: theme.spacing.lg,
+                paddingHorizontal: theme.spacing.lg,
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderWidth: 1,
+                borderColor: theme.colors.border,
+                shadowColor: theme.colors.shadow,
+                shadowOffset: {
+                  width: 0,
+                  height: 2,
+                },
+                shadowOpacity: 0.1,
+                shadowRadius: 4,
+                elevation: 3,
+              },
               { flex: 1, marginRight: theme.spacing.sm },
-              pressedButton === 'addMoney' && { opacity: 0.7 }
             ]}>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <Text style={{ fontSize: 16, marginRight: 8 }}>💰</Text>
-              <Text style={[
-                commonStyles.buttonText,
-                pressedButton === 'addMoney' && { color: theme.colors.text.secondary }
-              ]}>
+              <Text style={{
+                fontSize: theme.typography.fontSizes.base,
+                fontWeight: theme.typography.fontWeights.semibold as any,
+                color: pressedButton === 'addMoney' ? theme.colors.surface : theme.colors.text.primary
+              }}>
                 Add Money
               </Text>
             </View>

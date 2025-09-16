@@ -5,16 +5,15 @@ export interface SocialLoginResult {
   userData?: {
     name: string;
     email: string;
-    password: string; // Auto-generated for social login
+    password: string;
   };
 }
 
 export interface SocialProvider {
   name: string;
-  icon: any; // Will be replaced with actual icon imports
+  icon: any;
 }
 
-// Mock user data for different social providers
 const mockSocialAccounts = {
   google: [
     { name: 'John Doe', email: 'john.doe@gmail.com' },
@@ -33,7 +32,6 @@ const mockSocialAccounts = {
   ],
 };
 
-// Generate a secure random password for social login
 const generateSocialPassword = (): string => {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
   let password = '';
@@ -49,7 +47,6 @@ export const handleSocialLogin = async (
   return new Promise((resolve) => {
     const accounts = mockSocialAccounts[provider];
     
-    // Create account selection options
     const accountOptions = accounts.map((account, index) => ({
       text: `${account.name} (${account.email})`,
       onPress: () => {
@@ -62,13 +59,10 @@ export const handleSocialLogin = async (
       },
     }));
     
-    // Add cancel option
     accountOptions.push({
       text: 'Cancel',
       onPress: () => resolve({ success: false }),
     });
-    
-    // Show account selection alert
     Alert.alert(
       `Select ${provider.charAt(0).toUpperCase() + provider.slice(1)} Account`,
       'Choose an account to continue with:',
@@ -79,7 +73,7 @@ export const handleSocialLogin = async (
 
 export const getSocialProviders = (): SocialProvider[] => {
   return [
-    { name: 'google', icon: null }, // Will be replaced with actual icons
+    { name: 'google', icon: null },
     { name: 'facebook', icon: null },
     { name: 'apple', icon: null },
   ];

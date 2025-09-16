@@ -17,7 +17,12 @@ interface MapsScreenProps {
 export const MapsScreen: React.FC<MapsScreenProps> = ({ mode }) => {
   return (
     <SafeAreaView style={commonStyles.safeArea}>
-      <View style={{ flex: 1, padding: theme.spacing.lg }}>
+      <View style={{ 
+        flex: 1, 
+        padding: theme.spacing.lg,
+        paddingTop: theme.spacing.xl + theme.spacing.sm,
+        paddingBottom: theme.spacing.xl + theme.spacing.base
+      }}>
         
         {/* Header */}
         <View style={[commonStyles.headerContainer, { marginBottom: theme.spacing.lg, borderBottomWidth: 0, paddingHorizontal: 0 }]}>

@@ -11,7 +11,7 @@ import { HistoryScreen } from '../screens/customer/HistoryScreen';
 import { WalletScreen } from '../screens/customer/WalletScreen';
 import { ProfileScreen } from '../screens/customer/ProfileScreen';
 import { NavigationMode } from '../types';
-import CustomBottomNavigation from '../../CustomBottomNavigation';
+import CustomBottomNavigation from './CustomBottomNavigation';
 
 type TabType = 'home' | 'maps' | 'history' | 'wallet' | 'profile';
 
@@ -63,6 +63,7 @@ export const BottomTabNavigation: React.FC<BottomTabNavigationProps> = ({ onLogo
       <CustomBottomNavigation
         onTabPress={handleTabPress}
         initialTab="home"
+        activeTab={activeTab}
       />
     </SafeAreaView>
   );

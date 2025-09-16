@@ -57,7 +57,7 @@ const styles = StyleSheet.create({
   container: {
     padding: 20,
     alignItems: 'center',
-    backgroundColor: theme.colors.background.primary,
+    backgroundColor: theme.colors.background,
   },
   title: {
     fontSize: 24,

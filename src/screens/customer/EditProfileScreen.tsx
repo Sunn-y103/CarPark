@@ -7,44 +7,32 @@ import {
   TouchableOpacity,
   TextInput,
   Alert,
+  Image,
 } from 'react-native';
 import { theme } from '../../styles/theme';
 import { commonStyles } from '../../styles/commonStyles';
 import { User, Vehicle } from '../../types';
+import { LoadingScreen } from '../../components/LoadingScreen';
 
 interface EditProfileScreenProps {
   onBack: () => void;
-  onSave: (userData: User, vehicles: Vehicle[]) => void;
-  initialUserData?: User;
-  initialVehicles?: Vehicle[];
+  onSave: (userData: User, vehicles: Vehicle[]) => Promise<void>;
+  initialUserData: User;
+  initialVehicles: Vehicle[];
 }
 
 export const EditProfileScreen: React.FC<EditProfileScreenProps> = ({
   onBack,
   onSave,
-  initialUserData = {
-    id: '1',
-    name: 'John Doe',
-    email: 'john.doe@example.com',
-    phone: '+1 (555) 123-4567',
-  },
-  initialVehicles = [
-    {
-      id: '1',
-      make: 'Honda',
-      model: 'Civic',
-      licensePlate: 'MH 12 AB 1234',
-      color: 'Blue',
-      year: 2020,
-      type: 'car',
-    },
-  ],
+  initialUserData,
+  initialVehicles,
 }) => {
   const [userData, setUserData] = useState<User>(initialUserData);
   const [vehicles, setVehicles] = useState<Vehicle[]>(initialVehicles);
   const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!userData.name.trim() || !userData.email.trim()) {
       Alert.alert('Validation Error', 'Name and email are required.');
       return;
@@ -55,10 +43,15 @@ export const EditProfileScreen: React.FC<EditProfileScreenProps> = ({
       return;
     }
 
-    onSave(userData, vehicles);
-    Alert.alert('Success', 'Profile updated successfully!', [
-      { text: 'OK', onPress: onBack },
-    ]);
+    setIsSaving(true);
+    try {
+      await onSave(userData, vehicles);
+    } catch (error) {
+      console.error('Error saving profile:', error);
+      Alert.alert('Error', 'Failed to save profile changes. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleCancel = () => {
@@ -124,8 +117,12 @@ export const EditProfileScreen: React.FC<EditProfileScreenProps> = ({
         
         {/* Header */}
         <View style={[commonStyles.headerContainer, { marginBottom: theme.spacing.xl, borderBottomWidth: 0, paddingHorizontal: 0 }]}>
-          <TouchableOpacity onPress={handleCancel} style={{ padding: theme.spacing.xs }}>
-            <Text style={{ fontSize: 18, color: theme.colors.primary }}>← Back</Text>
+          <TouchableOpacity onPress={handleCancel} style={{ padding: theme.spacing.xs, flexDirection: 'row', alignItems: 'center' }}>
+            <Image 
+              source={require('../../assets/Back_Arrow.png')} 
+              style={{ width: 20, height: 20, marginRight: 4, tintColor: theme.colors.primary }} 
+            />
+            <Text style={{ fontSize: 16, color: theme.colors.primary }}>Back</Text>
           </TouchableOpacity>
           <Text style={[commonStyles.headerTitle, { color: theme.colors.text.primary }]}>
             Edit Profile
@@ -350,6 +347,11 @@ export const EditProfileScreen: React.FC<EditProfileScreenProps> = ({
           </TouchableOpacity>
         </View>
       </ScrollView>
+      
+      <LoadingScreen
+        visible={isSaving}
+        message="Saving profile changes..."
+      />
     </SafeAreaView>
   );
 };

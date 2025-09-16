@@ -1,18 +1,17 @@
 import { FirebaseFirestoreTypes } from '@react-native-firebase/firestore';
 
-// User Profile Interface
 export interface UserProfile {
   id: string;
   email: string;
   displayName?: string;
-  phoneNumber?: string; // String to handle international formats, leading zeros, and special characters
+  phoneNumber?: string;
   photoURL?: string;
+  role?: 'customer' | 'owner';
   createdAt: FirebaseFirestoreTypes.Timestamp;
   updatedAt: FirebaseFirestoreTypes.Timestamp;
   isActive: boolean;
 }
 
-// Activity Types
 export type ActivityType = 
   | 'login'
   | 'logout'
@@ -29,7 +28,6 @@ export type ActivityType =
   | 'history_view'
   | 'profile_view';
 
-// User Activity Interface
 export interface UserActivity {
   id?: string;
   userId: string;
@@ -51,7 +49,6 @@ export interface UserActivity {
   };
 }
 
-// Parking History Interface
 export interface ParkingHistory {
   id?: string;
   userId: string;
@@ -60,7 +57,7 @@ export interface ParkingHistory {
   address: string;
   startTime: FirebaseFirestoreTypes.Timestamp;
   endTime?: FirebaseFirestoreTypes.Timestamp;
-  duration?: number; // in minutes
+  duration?: number;
   cost: number;
   status: 'active' | 'completed' | 'cancelled';
   paymentStatus: 'pending' | 'paid' | 'failed' | 'refunded';
@@ -68,33 +65,30 @@ export interface ParkingHistory {
   updatedAt: FirebaseFirestoreTypes.Timestamp;
 }
 
-// Wallet Transaction Interface
 export interface WalletTransaction {
   id?: string;
   userId: string;
   type: 'credit' | 'debit';
   amount: number;
   description: string;
-  reference?: string; // External payment reference
+  reference?: string;
   status: 'pending' | 'completed' | 'failed';
-  relatedParkingId?: string; // If related to parking payment
+  relatedParkingId?: string;
   timestamp: FirebaseFirestoreTypes.Timestamp;
 }
 
-// Analytics Data Interface
 export interface UserAnalytics {
   id?: string;
   userId: string;
   totalParkingSessions: number;
   totalAmountSpent: number;
-  averageSessionDuration: number; // in minutes
+  averageSessionDuration: number;
   favoriteLocations: string[];
   lastLoginDate: FirebaseFirestoreTypes.Timestamp;
   accountCreatedDate: FirebaseFirestoreTypes.Timestamp;
   updatedAt: FirebaseFirestoreTypes.Timestamp;
 }
 
-// Firestore Collection Names
 export const COLLECTIONS = {
   USERS: 'users',
   USER_ACTIVITIES: 'userActivities',
@@ -102,8 +96,6 @@ export const COLLECTIONS = {
   WALLET_TRANSACTIONS: 'walletTransactions',
   USER_ANALYTICS: 'userAnalytics',
 } as const;
-
-// Activity Creation Helper
 export interface CreateActivityData {
   userId: string;
   type: ActivityType;

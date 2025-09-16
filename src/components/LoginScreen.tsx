@@ -11,19 +11,20 @@ import {
 } from 'react-native';
 import { theme } from '../styles/theme';
 import { commonStyles } from '../styles/commonStyles';
-import { LoadingScreen } from '../components/LoadingScreen';
+import { LoadingScreen } from './LoadingScreen';
 import { validateEmail, validatePassword, ValidationResult } from '../utils/validation';
 import { handleSocialLogin as processSocialLogin } from '../utils/socialLogin';
 import auth from '@react-native-firebase/auth';
 import FirebaseConfig from '../config/firebase';
-import FirestoreService from '../services/FirestoreService';
+import { SafeFirestoreService } from '../services/SafeFirestoreService';
 
 interface LoginScreenProps {
   onNavigateToRegister: () => void;
   onNavigateToHome: () => void;
+  onNavigateToForgotPassword?: () => void;
 }
 
-export const LoginScreen: React.FC<LoginScreenProps> = ({ onNavigateToRegister, onNavigateToHome }) => {
+export const LoginScreen: React.FC<LoginScreenProps> = ({ onNavigateToRegister, onNavigateToHome, onNavigateToForgotPassword }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
@@ -86,10 +87,17 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onNavigateToRegister, 
       const user = userCredential.user;
       
       if (user) {
-        const firestoreService = FirestoreService.getInstance();
+        console.log('Firebase Auth successful, user logged in:', user.uid);
         
-        // Update user profile
-        await firestoreService.createOrUpdateUserProfile({
+        // Navigate to home screen immediately after successful auth
+        // The role will be determined in onAuthStateChanged
+        onNavigateToHome();
+        
+        // Try Firestore operations in background (don't block login)
+        const safeFirestore = SafeFirestoreService.getInstance();
+        
+        // Update user profile (background operation - won't throw errors)
+        const profileResult = await safeFirestore.safeCreateOrUpdateUserProfile({
           id: user.uid,
           email: user.email || '',
           displayName: user.displayName || undefined,
@@ -98,8 +106,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onNavigateToRegister, 
           isActive: true,
         });
         
-        // Track login activity
-        await firestoreService.trackUserActivity({
+        // Track login activity (background operation - won't throw errors)
+        const activityResult = await safeFirestore.safeTrackUserActivity({
           userId: user.uid,
           type: 'login',
           description: 'User logged in successfully',
@@ -109,8 +117,11 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onNavigateToRegister, 
           },
         });
         
-        // Navigate to home screen after successful login
-        onNavigateToHome();
+        console.log('Firestore operations completed:', {
+          profileUpdated: profileResult,
+          activityTracked: activityResult,
+          firestoreAvailable: safeFirestore.isFirestoreAvailable()
+        });
       }
     } catch (error: any) {
       console.error('Login error:', error);
@@ -178,7 +189,11 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onNavigateToRegister, 
   };
 
   const handleForgotPassword = (): void => {
-    Alert.alert('Forgot Password', 'Password reset functionality would be implemented here');
+    if (onNavigateToForgotPassword) {
+      onNavigateToForgotPassword();
+    } else {
+      Alert.alert('Forgot Password', 'Password reset functionality would be implemented here');
+    }
   };
 
   return (
@@ -188,9 +203,19 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onNavigateToRegister, 
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled">
         
-        {/* Header */}
+        {/* Header with Logo */}
         <View style={{ alignItems: 'center', marginBottom: theme.spacing.xl }}>
-          <Text style={commonStyles.title}>Welcome Back</Text>
+          <Image 
+            source={require('../assets/CarPark_Logo.png')} 
+            style={{ 
+              width: 120, 
+              height: 120, 
+              marginBottom: theme.spacing.lg,
+              borderRadius:25,
+              resizeMode: 'contain' 
+            }} 
+          />
+          <Text style={commonStyles.title}>Welcome Back!</Text>
           <Text style={[commonStyles.subtitle, { marginBottom: theme.spacing.base }]}>Sign in to find your perfect parking spot</Text>
         </View>
 
@@ -277,59 +302,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onNavigateToRegister, 
           <Text style={commonStyles.linkText}>Forgot password?</Text>
         </TouchableOpacity>
 
-        {/* Divider */}
-        <View style={commonStyles.dividerContainer}>
-          <View style={commonStyles.divider} />
-          <Text style={commonStyles.dividerText}>OR</Text>
-          <View style={commonStyles.divider} />
-        </View>
-
-        {/* Social Login Buttons */}
-        <View style={{
-          flexDirection: 'row',
-          width: '100%',
-          marginBottom: theme.spacing.lg,
-          gap: theme.spacing.sm,
-        }}>
-          <TouchableOpacity
-            style={[commonStyles.socialButton, { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }]}
-            onPress={() => handleSocialLogin('google')}>
-            <Image source={require('../assets/Google.png')} style={{ width: 20, height: 20, marginRight: 8 }} />
-            <Text style={{ 
-              color: theme.colors.text.primary, 
-              fontSize: theme.typography.fontSizes.sm,
-              fontWeight: theme.typography.fontWeights.medium as any
-            }}>
-              Google
-            </Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            style={[commonStyles.socialButton, { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }]}
-            onPress={() => handleSocialLogin('facebook')}>
-            <Image source={require('../assets/Facebook.png')} style={{ width: 20, height: 20, marginRight: 8 }} />
-            <Text style={{ 
-              color: theme.colors.text.primary, 
-              fontSize: theme.typography.fontSizes.sm,
-              fontWeight: theme.typography.fontWeights.medium as any
-            }}>
-              Facebook
-            </Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            style={[commonStyles.socialButton, { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }]}
-            onPress={() => handleSocialLogin('apple')}>
-            <Image source={require('../assets/Apple.png')} style={{ width: 20, height: 20, marginRight: 8 }} />
-            <Text style={{ 
-              color: theme.colors.text.primary, 
-              fontSize: theme.typography.fontSizes.sm,
-              fontWeight: theme.typography.fontWeights.medium as any
-            }}>
-              Apple
-            </Text>
-          </TouchableOpacity>
-        </View>
 
         {/* Navigate to Register */}
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>

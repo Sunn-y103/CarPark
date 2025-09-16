@@ -12,6 +12,10 @@ import { theme } from '../../styles/theme';
 import { commonStyles } from '../../styles/commonStyles';
 import { EditProfileScreen } from './EditProfileScreen';
 import { User, Vehicle } from '../../types';
+import { AuthUtils } from '../../utils/authUtils';
+import { useUserProfile } from '../../hooks/useUserProfile';
+import { LoadingScreen } from '../../components/LoadingScreen';
+import auth from '@react-native-firebase/auth';
 
 interface ProfileScreenProps {
   onLogout: () => void;
@@ -19,32 +23,41 @@ interface ProfileScreenProps {
 
 export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout }) => {
   const [showEditProfile, setShowEditProfile] = useState(false);
-  const [userData, setUserData] = useState<User>({
+  const { user, vehicles, isLoading, isError, error, updateUserProfile, refreshProfile } = useUserProfile();
+  
+  // Fallback data if user data is not loaded
+  const userData = user || {
     id: '1',
-    name: 'John Doe',
-    email: 'john.doe@example.com',
-    phone: '+1 (555) 123-4567',
-  });
-  const [userVehicles, setUserVehicles] = useState<Vehicle[]>([
+    name: 'Loading...',
+    email: 'Loading...',
+    phone: '',
+  };
+  
+  const userVehicles = vehicles.length > 0 ? vehicles : [
     {
       id: '1',
-      make: 'Honda',
-      model: 'Civic',
-      licensePlate: 'MH 12 AB 1234',
-      color: 'Blue',
-      year: 2020,
-      type: 'car',
+      make: 'No vehicle',
+      model: '',
+      licensePlate: 'Not set',
+      color: '',
+      year: new Date().getFullYear(),
+      type: 'car' as const,
     },
-  ]);
+  ];
 
   const handleEditProfile = () => {
     setShowEditProfile(true);
   };
 
-  const handleSaveProfile = (newUserData: User, newVehicles: Vehicle[]) => {
-    setUserData(newUserData);
-    setUserVehicles(newVehicles);
-    setShowEditProfile(false);
+  const handleSaveProfile = async (newUserData: User, newVehicles: Vehicle[]) => {
+    try {
+      await updateUserProfile(newUserData, newVehicles);
+      setShowEditProfile(false);
+      Alert.alert('Success', 'Profile updated successfully!');
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      Alert.alert('Error', 'Failed to update profile. Please try again.');
+    }
   };
 
   const handleBackFromEdit = () => {
@@ -83,14 +96,8 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout }) => {
         { 
           text: 'Logout', 
           style: 'destructive', 
-          onPress: async () => {
-            try {
-              console.log('User confirmed logout');
-              await onLogout();
-            } catch (error) {
-              console.error('Error during logout:', error);
-              Alert.alert('Error', 'Failed to logout. Please try again.');
-            }
+          onPress: () => {
+            AuthUtils.performLogout(userData.id, onLogout);
           }
         },
       ]
@@ -100,7 +107,12 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout }) => {
   return (
     <SafeAreaView style={commonStyles.safeArea}>
       <ScrollView
-        contentContainerStyle={{ flexGrow: 1, padding: theme.spacing.lg }}
+        contentContainerStyle={{ 
+          flexGrow: 1, 
+          padding: theme.spacing.lg,
+          paddingTop: theme.spacing.xl + theme.spacing.sm,
+          paddingBottom: theme.spacing.xl + theme.spacing.base
+        }}
         showsVerticalScrollIndicator={false}>
         
         {/* Header */}
@@ -160,7 +172,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout }) => {
             fontSize: theme.typography.fontSizes.sm,
             color: theme.colors.text.tertiary,
           }}>
-            Vehicles: {userVehicles.map(v => v.licensePlate).join(', ')}
+            Vehicles: {userVehicles.map(v => v.licensePlate).filter(plate => plate !== 'Not set').join(', ') || 'No vehicles added'}
           </Text>
         </View>
 
@@ -398,6 +410,37 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout }) => {
           </View>
         </TouchableOpacity>
       </ScrollView>
+      
+      <LoadingScreen
+        visible={isLoading}
+        message="Loading profile..."
+      />
+      
+      {isError && (
+        <View style={{
+          position: 'absolute',
+          top: 100,
+          left: 20,
+          right: 20,
+          backgroundColor: theme.colors.error,
+          padding: theme.spacing.base,
+          borderRadius: theme.borderRadius.base,
+        }}>
+          <Text style={{ color: theme.colors.surface, textAlign: 'center' }}>
+            Error: {error}
+          </Text>
+          <TouchableOpacity 
+            onPress={refreshProfile}
+            style={{
+              marginTop: theme.spacing.xs,
+              alignItems: 'center',
+            }}>
+            <Text style={{ color: theme.colors.surface, fontWeight: 'bold' }}>
+              Tap to retry
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </SafeAreaView>
   );
 };

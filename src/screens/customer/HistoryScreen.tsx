@@ -47,7 +47,12 @@ export const HistoryScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={commonStyles.safeArea}>
-      <View style={{ flex: 1, padding: theme.spacing.lg }}>
+      <View style={{ 
+        flex: 1, 
+        padding: theme.spacing.lg,
+        paddingTop: theme.spacing.xl + theme.spacing.sm,
+        paddingBottom: theme.spacing.xl + theme.spacing.base
+      }}>
         
         {/* Header */}
         <View style={{ marginBottom: theme.spacing.lg }}>
