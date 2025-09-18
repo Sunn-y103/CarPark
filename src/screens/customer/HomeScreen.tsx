@@ -22,6 +22,17 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToMaps }) => {
   const { user: profileUser } = useUserProfile();
   const [activeBooking, setActiveBooking] = useState<Booking | null>(null);
   
+  // Track user profile changes for debugging
+  useEffect(() => {
+    if (profileUser) {
+      console.log('HomeScreen: User profile updated:', {
+        name: profileUser.name,
+        email: profileUser.email,
+        phone: profileUser.phone,
+      });
+    }
+  }, [profileUser]);
+  
   const user = profileUser || {
     id: '1',
     name: 'User',

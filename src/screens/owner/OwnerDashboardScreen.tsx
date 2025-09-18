@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { theme } from '../../styles/theme';
 import { commonStyles } from '../../styles/commonStyles';
+import { useOwnerProfile } from '../../hooks/useOwnerProfile';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -26,6 +27,7 @@ export const OwnerDashboardScreen: React.FC<OwnerDashboardScreenProps> = ({
   onNavigateToBookings,
   onNavigateToRevenue,
 }) => {
+  const { owner, isLoading } = useOwnerProfile();
   const [dashboardStats, setDashboardStats] = useState({
     totalSpots: 50,
     occupiedSpots: 35,
@@ -69,7 +71,9 @@ export const OwnerDashboardScreen: React.FC<OwnerDashboardScreenProps> = ({
         <View style={styles.header}>
           <View>
             <Text style={styles.welcomeText}>Welcome Back</Text>
-            <Text style={styles.businessName}>CarPark Business</Text>
+            <Text style={styles.businessName}>
+              {isLoading ? 'Loading...' : (owner?.businessName || owner?.ownerName || 'CarPark Business')}
+            </Text>
           </View>
           <TouchableOpacity style={styles.notificationButton}>
             <Image 
@@ -103,7 +107,7 @@ export const OwnerDashboardScreen: React.FC<OwnerDashboardScreenProps> = ({
               <Text style={styles.statLabel}>Pending Bookings</Text>
               <Text style={styles.statSubtext}>Requires attention</Text>
             </View>
-            <View style={[styles.statCard, { backgroundColor: theme.colors.secondary }]}>
+            <View style={[styles.statCard, { backgroundColor: theme.colors.primary }]}>
               <Text style={styles.statNumber}>₹{dashboardStats.monthlyRevenue}</Text>
               <Text style={styles.statLabel}>Monthly Revenue</Text>
               <Text style={styles.statSubtext}>This month</Text>
@@ -120,7 +124,7 @@ export const OwnerDashboardScreen: React.FC<OwnerDashboardScreenProps> = ({
               onPress={() => handleQuickAction('management')}
             >
               <Image 
-                source={require('../../assets/CarPark_Logo.png')}
+                source={require('../../assets/Parking.png')}
                 style={styles.quickActionIcon}
               />
               <Text style={styles.quickActionText}>Manage Parking</Text>
@@ -276,7 +280,7 @@ const styles = StyleSheet.create({
     marginHorizontal: theme.spacing.xs,
   },
   statNumber: {
-    fontSize: theme.typography.fontSizes.xxl,
+    fontSize: theme.typography.fontSizes.xl,
     fontWeight: theme.typography.fontWeights.bold as any,
     color: theme.colors.text.inverse,
     marginBottom: 4,

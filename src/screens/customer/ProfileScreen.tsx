@@ -25,13 +25,16 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout }) => {
   const [showEditProfile, setShowEditProfile] = useState(false);
   const { user, vehicles, isLoading, isError, error, updateUserProfile, refreshProfile } = useUserProfile();
   
-  // Fallback data if user data is not loaded
+  // Use actual user data if available, show loading state if not
   const userData = user || {
     id: '1',
     name: 'Loading...',
     email: 'Loading...',
     phone: '',
   };
+  
+  // Don't allow editing if user data is still loading
+  const canEdit = user !== null && !isLoading;
   
   const userVehicles = vehicles.length > 0 ? vehicles : [
     {
@@ -46,13 +49,19 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout }) => {
   ];
 
   const handleEditProfile = () => {
-    setShowEditProfile(true);
+    if (canEdit) {
+      setShowEditProfile(true);
+    }
   };
 
   const handleSaveProfile = async (newUserData: User, newVehicles: Vehicle[]) => {
     try {
       await updateUserProfile(newUserData, newVehicles);
       setShowEditProfile(false);
+      
+      // Explicitly refresh profile data to ensure all screens get latest data
+      await refreshProfile();
+      
       Alert.alert('Success', 'Profile updated successfully!');
     } catch (error) {
       console.error('Error updating profile:', error);
@@ -181,6 +190,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout }) => {
           {/* Edit Profile */}
           <TouchableOpacity
             onPress={handleEditProfile}
+            disabled={!canEdit}
             style={[
               commonStyles.socialButton,
               { 
@@ -188,6 +198,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout }) => {
                 paddingVertical: theme.spacing.lg,
                 alignItems: 'flex-start',
                 marginBottom: theme.spacing.sm,
+                opacity: canEdit ? 1 : 0.6,
               }
             ]}>
             <View style={{

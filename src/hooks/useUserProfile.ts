@@ -170,13 +170,23 @@ export const useUserProfile = () => {
         // Continue even if customer profile update fails
       }
 
-      // Update local state
+      // Update local state immediately
       setProfileData(prev => ({
         ...prev,
         user: userData,
         vehicles: userVehicles,
         isLoading: false,
+        isError: false,
+        error: null,
       }));
+      
+      // Log the update for debugging
+      console.log('useUserProfile: Profile updated successfully:', {
+        name: userData.name,
+        email: userData.email,
+        phone: userData.phone,
+        vehicleCount: userVehicles.length,
+      });
 
       // Track profile update activity
       try {

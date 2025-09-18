@@ -411,7 +411,7 @@ const styles = StyleSheet.create({
   contactButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: theme.colors.secondary,
+    backgroundColor: theme.colors.primary,
     paddingHorizontal: theme.spacing.base,
     paddingVertical: theme.spacing.sm,
     borderRadius: theme.borderRadius.sm,

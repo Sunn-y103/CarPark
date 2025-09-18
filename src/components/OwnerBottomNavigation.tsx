@@ -25,8 +25,8 @@ interface OwnerBottomNavigationProps {
 }
 
 const OWNER_TABS: Tab[] = [
-  { id: 'dashboard', label: 'Dashboard', icon: require('../assets/home.png') },
-  { id: 'parking', label: 'Parking', icon: require('../assets/CarPark_Logo.png') },
+  { id: 'dashboard', label: 'Home', icon: require('../assets/home.png') },
+  { id: 'parking', label: 'Parking', icon: require('../assets/Parking.png') },
   { id: 'bookings', label: 'Bookings', icon: require('../assets/Book_In_Advance.png') },
   { id: 'revenue', label: 'Revenue', icon: require('../assets/wallet.png') },
   { id: 'profile', label: 'Profile', icon: require('../assets/Owner.png') },
@@ -58,10 +58,10 @@ const OwnerBottomNavigation: React.FC<OwnerBottomNavigationProps> = ({
     const textPadding = 8; // 4px gap + margins
     
     switch (tabId) {
-      case 'dashboard': return baseIconWidth + textPadding + 60; // "Dashboard" width
+      case 'dashboard': return baseIconWidth + textPadding + 40; // "Dashboard" width
       case 'parking': return baseIconWidth + textPadding + 48; // "Parking" width  
-      case 'bookings': return baseIconWidth + textPadding + 52; // "Bookings" width
-      case 'revenue': return baseIconWidth + textPadding + 50; // "Revenue" width
+      case 'bookings': return baseIconWidth + textPadding + 60; // "Bookings" width
+      case 'revenue': return baseIconWidth + textPadding + 55; // "Revenue" width
       case 'profile': return baseIconWidth + textPadding + 42; // "Profile" width
       default: return baseIconWidth + textPadding + 32;
     }

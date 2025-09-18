@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -13,28 +13,37 @@ import {
 } from 'react-native';
 import { theme } from '../../styles/theme';
 import { commonStyles } from '../../styles/commonStyles';
+import { useOwnerProfile, OwnerData } from '../../hooks/useOwnerProfile';
+import { LoadingScreen } from '../../components/LoadingScreen';
 
 interface OwnerProfileScreenProps {
   onLogout: () => void;
 }
 
 export const OwnerProfileScreen: React.FC<OwnerProfileScreenProps> = ({ onLogout }) => {
-  const [profile, setProfile] = useState({
-    ownerName: 'John Doe',
-    businessName: 'CarPark Plaza',
-    email: 'john@carpark.com',
-    phone: '+91 9876543210',
-    address: '123 Business Street, Commercial Complex, Mumbai',
-    businessLicense: 'BL123456789',
-    totalSpots: 50,
-    operatingHours: '24/7',
-    autoApproval: true,
-    notifications: true,
-    emailAlerts: false,
-  });
-
+  const { owner, isLoading, isError, error, updateOwnerProfile, refreshProfile } = useOwnerProfile();
   const [isEditing, setIsEditing] = useState(false);
-  const [editedProfile, setEditedProfile] = useState(profile);
+  const [editedProfile, setEditedProfile] = useState<Partial<OwnerData>>({});
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Update editedProfile when owner data changes
+  useEffect(() => {
+    if (owner) {
+      setEditedProfile({
+        ownerName: owner.ownerName,
+        businessName: owner.businessName,
+        email: owner.email,
+        phone: owner.phone,
+        address: owner.address,
+        businessLicense: owner.businessLicense,
+        totalSpots: owner.totalSpots,
+        operatingHours: owner.operatingHours,
+        autoApproval: owner.autoApproval,
+        notifications: owner.notifications,
+        emailAlerts: owner.emailAlerts,
+      });
+    }
+  }, [owner]);
 
   const businessStats = {
     totalRevenue: 125000,
@@ -43,14 +52,78 @@ export const OwnerProfileScreen: React.FC<OwnerProfileScreenProps> = ({ onLogout
     monthlyRevenue: 45000,
   };
 
-  const handleSaveProfile = () => {
-    setProfile(editedProfile);
-    setIsEditing(false);
-    Alert.alert('Success', 'Profile updated successfully');
+  // Show loading screen while data is being fetched
+  if (isLoading) {
+    return (
+      <LoadingScreen
+        visible={true}
+        message="Loading owner profile..."
+      />
+    );
+  }
+
+  // Show error state
+  if (isError) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>Error loading profile: {error}</Text>
+          <TouchableOpacity style={styles.retryButton} onPress={refreshProfile}>
+            <Text style={styles.retryButtonText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // Show fallback if no owner data
+  if (!owner) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>No owner profile found</Text>
+          <TouchableOpacity style={styles.retryButton} onPress={refreshProfile}>
+            <Text style={styles.retryButtonText}>Refresh</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  const handleSaveProfile = async () => {
+    if (!editedProfile.ownerName?.trim()) {
+      Alert.alert('Error', 'Owner name is required');
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      await updateOwnerProfile(editedProfile);
+      setIsEditing(false);
+      Alert.alert('Success', 'Profile updated successfully');
+    } catch (error) {
+      Alert.alert('Error', 'Failed to update profile. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleCancelEdit = () => {
-    setEditedProfile(profile);
+    if (owner) {
+      setEditedProfile({
+        ownerName: owner.ownerName,
+        businessName: owner.businessName,
+        email: owner.email,
+        phone: owner.phone,
+        address: owner.address,
+        businessLicense: owner.businessLicense,
+        totalSpots: owner.totalSpots,
+        operatingHours: owner.operatingHours,
+        autoApproval: owner.autoApproval,
+        notifications: owner.notifications,
+        emailAlerts: owner.emailAlerts,
+      });
+    }
     setIsEditing(false);
   };
 
@@ -108,26 +181,26 @@ export const OwnerProfileScreen: React.FC<OwnerProfileScreenProps> = ({ onLogout
             {isEditing ? (
               <TextInput
                 style={styles.editInput}
-                value={editedProfile.ownerName}
+                value={editedProfile.ownerName || ''}
                 onChangeText={(text) => setEditedProfile({...editedProfile, ownerName: text})}
                 placeholder="Owner Name"
               />
             ) : (
-              <Text style={styles.ownerName}>{profile.ownerName}</Text>
+              <Text style={styles.ownerName}>{owner.ownerName}</Text>
             )}
             
             {isEditing ? (
               <TextInput
                 style={styles.editInput}
-                value={editedProfile.businessName}
+                value={editedProfile.businessName || ''}
                 onChangeText={(text) => setEditedProfile({...editedProfile, businessName: text})}
                 placeholder="Business Name"
               />
             ) : (
-              <Text style={styles.businessName}>{profile.businessName}</Text>
+              <Text style={styles.businessName}>{owner.businessName}</Text>
             )}
             
-            <Text style={styles.businessLicense}>License: {profile.businessLicense}</Text>
+            <Text style={styles.businessLicense}>License: {owner.businessLicense || 'Not set'}</Text>
           </View>
         </View>
 
@@ -163,13 +236,13 @@ export const OwnerProfileScreen: React.FC<OwnerProfileScreenProps> = ({ onLogout
               {isEditing ? (
                 <TextInput
                   style={styles.editInput}
-                  value={editedProfile.email}
+                  value={editedProfile.email || ''}
                   onChangeText={(text) => setEditedProfile({...editedProfile, email: text})}
                   placeholder="Email"
                   keyboardType="email-address"
                 />
               ) : (
-                <Text style={styles.infoText}>{profile.email}</Text>
+                <Text style={styles.infoText}>{owner.email}</Text>
               )}
             </View>
             
@@ -178,13 +251,13 @@ export const OwnerProfileScreen: React.FC<OwnerProfileScreenProps> = ({ onLogout
               {isEditing ? (
                 <TextInput
                   style={styles.editInput}
-                  value={editedProfile.phone}
+                  value={editedProfile.phone || ''}
                   onChangeText={(text) => setEditedProfile({...editedProfile, phone: text})}
                   placeholder="Phone"
                   keyboardType="phone-pad"
                 />
               ) : (
-                <Text style={styles.infoText}>{profile.phone}</Text>
+                <Text style={styles.infoText}>{owner.phone}</Text>
               )}
             </View>
             
@@ -193,13 +266,13 @@ export const OwnerProfileScreen: React.FC<OwnerProfileScreenProps> = ({ onLogout
               {isEditing ? (
                 <TextInput
                   style={[styles.editInput, styles.multilineInput]}
-                  value={editedProfile.address}
+                  value={editedProfile.address || ''}
                   onChangeText={(text) => setEditedProfile({...editedProfile, address: text})}
                   placeholder="Business Address"
                   multiline
                 />
               ) : (
-                <Text style={styles.infoText}>{profile.address}</Text>
+                <Text style={styles.infoText}>{owner.address || 'Not set'}</Text>
               )}
             </View>
           </View>
@@ -212,30 +285,33 @@ export const OwnerProfileScreen: React.FC<OwnerProfileScreenProps> = ({ onLogout
             <View style={styles.settingRow}>
               <Text style={styles.settingLabel}>Auto-approve Bookings</Text>
               <Switch
-                value={editedProfile.autoApproval}
+                value={editedProfile.autoApproval !== undefined ? editedProfile.autoApproval : false}
                 onValueChange={(value) => setEditedProfile({...editedProfile, autoApproval: value})}
                 trackColor={{ false: theme.colors.border, true: theme.colors.primary }}
                 thumbColor={editedProfile.autoApproval ? theme.colors.accent : theme.colors.text.tertiary}
+                disabled={!isEditing}
               />
             </View>
             
             <View style={styles.settingRow}>
               <Text style={styles.settingLabel}>Push Notifications</Text>
               <Switch
-                value={editedProfile.notifications}
+                value={editedProfile.notifications !== undefined ? editedProfile.notifications : false}
                 onValueChange={(value) => setEditedProfile({...editedProfile, notifications: value})}
                 trackColor={{ false: theme.colors.border, true: theme.colors.primary }}
                 thumbColor={editedProfile.notifications ? theme.colors.accent : theme.colors.text.tertiary}
+                disabled={!isEditing}
               />
             </View>
             
             <View style={styles.settingRow}>
               <Text style={styles.settingLabel}>Email Alerts</Text>
               <Switch
-                value={editedProfile.emailAlerts}
+                value={editedProfile.emailAlerts !== undefined ? editedProfile.emailAlerts : false}
                 onValueChange={(value) => setEditedProfile({...editedProfile, emailAlerts: value})}
                 trackColor={{ false: theme.colors.border, true: theme.colors.primary }}
                 thumbColor={editedProfile.emailAlerts ? theme.colors.accent : theme.colors.text.tertiary}
+                disabled={!isEditing}
               />
             </View>
           </View>
@@ -275,6 +351,11 @@ export const OwnerProfileScreen: React.FC<OwnerProfileScreenProps> = ({ onLogout
         {/* Bottom Spacing for Navigation */}
         <View style={{ height: 100 }} />
       </ScrollView>
+      
+      <LoadingScreen
+        visible={isSaving}
+        message="Saving profile..."
+      />
     </SafeAreaView>
   );
 };
@@ -494,6 +575,29 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.base,
   },
   logoutButtonText: {
+    color: theme.colors.text.inverse,
+    fontSize: theme.typography.fontSizes.base,
+    fontWeight: theme.typography.fontWeights.medium as any,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: theme.spacing.xl,
+  },
+  errorText: {
+    fontSize: theme.typography.fontSizes.lg,
+    color: theme.colors.text.primary,
+    textAlign: 'center',
+    marginBottom: theme.spacing.lg,
+  },
+  retryButton: {
+    backgroundColor: theme.colors.primary,
+    paddingHorizontal: theme.spacing.xl,
+    paddingVertical: theme.spacing.base,
+    borderRadius: theme.borderRadius.lg,
+  },
+  retryButtonText: {
     color: theme.colors.text.inverse,
     fontSize: theme.typography.fontSizes.base,
     fontWeight: theme.typography.fontWeights.medium as any,

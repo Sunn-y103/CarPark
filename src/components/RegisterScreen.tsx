@@ -176,7 +176,7 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ onNavigateToLogi
           displayName,
           phoneNumber: userType === 'customer' ? phoneNumber : businessPhone,
           isActive: true,
-          role: userType,
+          role: userType || 'customer',
         });
         
         if (userType === 'customer') {

@@ -116,6 +116,58 @@ class FirestoreService {
     }
   }
 
+  async createOrUpdateOwnerProfile(ownerData: {
+    userId: string;
+    ownerName: string;
+    businessName?: string;
+    businessAddress?: string;
+    businessPhone?: string;
+    businessLicense?: string;
+    totalSpots?: number;
+    operatingHours?: string;
+    autoApproval?: boolean;
+    notifications?: boolean;
+    emailAlerts?: boolean;
+  }): Promise<void> {
+    try {
+      const ownerRef = this.firestore.collection('ownerProfiles').doc(ownerData.userId);
+      const ownerDoc = await ownerRef.get();
+      
+      const timestamp = firestore.Timestamp.now();
+      
+      if (ownerDoc.exists()) {
+        await ownerRef.update({
+          ...ownerData,
+          updatedAt: timestamp,
+        });
+      } else {
+        await ownerRef.set({
+          ...ownerData,
+          createdAt: timestamp,
+          updatedAt: timestamp,
+        });
+      }
+    } catch (error) {
+      console.error('Error creating/updating owner profile:', error);
+      throw error;
+    }
+  }
+
+  async getOwnerProfile(userId: string): Promise<any | null> {
+    try {
+      const ownerDoc = await this.firestore.collection('ownerProfiles').doc(userId).get();
+      
+      if (ownerDoc.exists()) {
+        return { id: ownerDoc.id, ...ownerDoc.data() };
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('Error getting owner profile:', error);
+      throw error;
+    }
+  }
+
   async trackUserActivity(activityData: CreateActivityData): Promise<string> {
     try {
       const activity: Omit<UserActivity, 'id'> = {
