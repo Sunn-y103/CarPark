@@ -111,9 +111,14 @@ android {
     }
 }
 
+
 dependencies {
     // The version of react-native is set by the React Native Gradle Plugin
     implementation("com.facebook.react:react-android")
+
+    // Google Play Services for Maps - REQUIRED for react-native-maps markers/overlays
+    implementation 'com.google.android.gms:play-services-maps:18.2.0'
+    // Removed play-services-location to avoid conflict with Firebase
 
     if (hermesEnabled.toBoolean()) {
         implementation("com.facebook.react:hermes-android")
@@ -121,3 +126,4 @@ dependencies {
         implementation jscFlavor
     }
 }
+

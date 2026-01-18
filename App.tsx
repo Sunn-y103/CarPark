@@ -17,6 +17,8 @@ import auth, { FirebaseAuthTypes } from '@react-native-firebase/auth';
 import FirebaseConfig from './src/config/firebase';
 import { SafeFirestoreService } from './src/services/SafeFirestoreService';
 import { RoleNavigationService, UserRole } from './src/services/RoleNavigationService';
+import { BookingProvider } from './src/context/BookingContext';
+import { WalletProvider } from './src/context/WalletContext';
 
 type AppState = 'login' | 'register' | 'forgotPassword' | 'authenticated';
 // UserRole is now imported from RoleNavigationService
@@ -37,7 +39,7 @@ function App() {
       try {
         const roleService = RoleNavigationService.getInstance();
         const roleResult = await roleService.getUserRole(user.uid);
-        
+
         if (roleResult.success) {
           console.log('User role determined:', roleResult.role);
           setUserRole(roleResult.role);
@@ -51,7 +53,7 @@ function App() {
         setUserRole('customer'); // Safe fallback
       }
       setAppState('authenticated');
-      
+
       // Track login activity for returning users (non-blocking background operation)
       const trackLoginActivity = async () => {
         const safeFirestore = SafeFirestoreService.getInstance();
@@ -64,13 +66,13 @@ function App() {
             timestamp: new Date().toISOString(),
           },
         });
-        
+
         console.log('Session restore tracking:', {
           success: result,
           firestoreAvailable: safeFirestore.isFirestoreAvailable()
         });
       };
-      
+
       // Run in background, don't await
       trackLoginActivity();
     } else {
@@ -114,7 +116,7 @@ function App() {
     try {
       console.log('handleLogout called - current user:', user?.uid);
       console.log('handleLogout called - current appState:', appState);
-      
+
       // Skip Firestore tracking for now to avoid delays
       // if (user) {
       //   try {
@@ -132,13 +134,13 @@ function App() {
       //     console.warn('Failed to track logout activity:', trackingError);
       //   }
       // }
-      
+
       // Clear user state immediately
       console.log('Clearing user state and setting appState to login');
       setUser(null);
       setUserRole(null);
       setAppState('login');
-      
+
       // Then sign out from Firebase
       try {
         console.log('Attempting Firebase signOut');
@@ -147,7 +149,7 @@ function App() {
       } catch (firebaseError) {
         console.warn('Firebase signOut failed:', firebaseError);
       }
-      
+
     } catch (error) {
       console.error('Logout error:', error);
       // Even if Firebase signOut fails, ensure we navigate to login
@@ -163,7 +165,7 @@ function App() {
     switch (appState) {
       case 'login':
         return (
-          <LoginScreen 
+          <LoginScreen
             onNavigateToRegister={() => setAppState('register')}
             onNavigateToHome={handleNavigateToHome}
             onNavigateToForgotPassword={handleNavigateToForgotPassword}
@@ -171,13 +173,13 @@ function App() {
         );
       case 'register':
         return (
-          <RegisterScreen 
+          <RegisterScreen
             onNavigateToLogin={() => setAppState('login')}
           />
         );
       case 'forgotPassword':
         return (
-          <ForgotPasswordScreen 
+          <ForgotPasswordScreen
             onNavigateBack={handleNavigateBackToLogin}
           />
         );
@@ -190,7 +192,7 @@ function App() {
         }
       default:
         return (
-          <LoginScreen 
+          <LoginScreen
             onNavigateToRegister={() => setAppState('register')}
             onNavigateToHome={handleNavigateToHome}
             onNavigateToForgotPassword={handleNavigateToForgotPassword}
@@ -202,7 +204,11 @@ function App() {
   return (
     <SafeAreaProvider>
       <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
-      {renderContent()}
+      <WalletProvider>
+        <BookingProvider>
+          {renderContent()}
+        </BookingProvider>
+      </WalletProvider>
     </SafeAreaProvider>
   );
 }

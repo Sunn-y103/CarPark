@@ -10,54 +10,23 @@ import {
 import { theme } from '../../styles/theme';
 import { commonStyles } from '../../styles/commonStyles';
 
+import { useWallet } from '../../context/WalletContext';
+
 export const WalletScreen: React.FC = () => {
+  const { balance, transactions, addFunds } = useWallet();
   const [pressedButton, setPressedButton] = useState<string | null>(null);
-  const transactions = [
-    {
-      id: 1,
-      type: 'payment',
-      description: 'Parking at Mall Plaza',
-      amount: '- ₹120',
-      date: 'Today, 5:45 PM',
-      status: 'completed',
-    },
-    {
-      id: 2,
-      type: 'topup',
-      description: 'Wallet Top-up',
-      amount: '+ ₹500',
-      date: 'Yesterday, 9:30 AM',
-      status: 'completed',
-    },
-    {
-      id: 3,
-      type: 'payment',
-      description: 'Parking at City Center',
-      amount: '- ₹80',
-      date: 'Yesterday, 12:30 PM',
-      status: 'completed',
-    },
-    {
-      id: 4,
-      type: 'refund',
-      description: 'Refund - Cancelled Booking',
-      amount: '+ ₹60',
-      date: '2 days ago, 3:15 PM',
-      status: 'completed',
-    },
-  ];
 
   return (
     <SafeAreaView style={commonStyles.safeArea}>
       <ScrollView
-        contentContainerStyle={{ 
-          flexGrow: 1, 
+        contentContainerStyle={{
+          flexGrow: 1,
           padding: theme.spacing.lg,
           paddingTop: theme.spacing.xl + theme.spacing.sm,
           paddingBottom: theme.spacing.xl + theme.spacing.base
         }}
         showsVerticalScrollIndicator={false}>
-        
+
         {/* Header */}
         <View style={{ marginBottom: theme.spacing.xl }}>
           <Text style={[commonStyles.title, { textAlign: 'left' }]}>
@@ -95,7 +64,8 @@ export const WalletScreen: React.FC = () => {
             color: theme.colors.surface,
             marginBottom: theme.spacing.base,
           }}>
-            ₹1,250
+            {/* Format as currency */}
+            ₹{balance.toLocaleString()}
           </Text>
           <Text style={{
             fontSize: theme.typography.fontSizes.sm,
@@ -112,6 +82,7 @@ export const WalletScreen: React.FC = () => {
           marginBottom: theme.spacing.xl,
         }}>
           <TouchableOpacity
+            onPress={() => addFunds(500)} // Simulating adding ₹500
             onPressIn={() => setPressedButton('addMoney')}
             onPressOut={() => setPressedButton(null)}
             style={[
@@ -146,7 +117,7 @@ export const WalletScreen: React.FC = () => {
               </Text>
             </View>
           </TouchableOpacity>
-          
+
           <TouchableOpacity
             onPressIn={() => setPressedButton('viewStatement')}
             onPressOut={() => setPressedButton(null)}
@@ -175,10 +146,10 @@ export const WalletScreen: React.FC = () => {
             color: theme.colors.text.primary,
             marginBottom: theme.spacing.base,
           }}>Payment Methods</Text>
-          
+
           <TouchableOpacity style={[
             commonStyles.socialButton,
-            { 
+            {
               width: '100%',
               paddingVertical: theme.spacing.lg,
               alignItems: 'flex-start',
@@ -218,7 +189,7 @@ export const WalletScreen: React.FC = () => {
 
           <TouchableOpacity style={[
             commonStyles.socialButton,
-            { 
+            {
               width: '100%',
               paddingVertical: theme.spacing.lg,
               alignItems: 'center',
@@ -242,20 +213,20 @@ export const WalletScreen: React.FC = () => {
             color: theme.colors.text.primary,
             marginBottom: theme.spacing.base,
           }}>Recent Transactions</Text>
-          
+
           {transactions.map((transaction) => (
             <View
               key={transaction.id}
               style={[
                 commonStyles.socialButton,
-                { 
+                {
                   width: '100%',
                   paddingVertical: theme.spacing.lg,
                   alignItems: 'flex-start',
                   marginBottom: theme.spacing.sm,
                 }
               ]}>
-              
+
               <View style={{
                 flexDirection: 'row',
                 alignItems: 'center',
@@ -266,23 +237,23 @@ export const WalletScreen: React.FC = () => {
                   width: 40,
                   height: 40,
                   borderRadius: 20,
-                  backgroundColor: transaction.type === 'payment' 
-                    ? theme.colors.error + '20' 
+                  backgroundColor: transaction.type === 'payment'
+                    ? theme.colors.error + '20'
                     : theme.colors.success + '20',
                   alignItems: 'center',
                   justifyContent: 'center',
                   marginRight: theme.spacing.base,
                 }}>
                   <Text style={{ fontSize: 18 }}>
-                    {transaction.type === 'payment' 
+                    {transaction.type === 'payment'
                       ? '🅿️'
                       : transaction.type === 'topup'
-                      ? '💰'
-                      : '🔄'
+                        ? '💰'
+                        : '🔄'
                     }
                   </Text>
                 </View>
-                
+
                 <View style={{ flex: 1 }}>
                   <Text style={{
                     fontSize: theme.typography.fontSizes.base,
@@ -298,15 +269,15 @@ export const WalletScreen: React.FC = () => {
                     {transaction.date}
                   </Text>
                 </View>
-                
+
                 <Text style={{
                   fontSize: theme.typography.fontSizes.base,
                   fontWeight: theme.typography.fontWeights.semibold as any,
-                  color: transaction.amount.startsWith('-') 
-                    ? theme.colors.error 
+                  color: transaction.type === 'payment'
+                    ? theme.colors.error
                     : theme.colors.success,
                 }}>
-                  {transaction.amount}
+                  {transaction.type === 'payment' ? '-' : '+'} ₹{transaction.amount}
                 </Text>
               </View>
             </View>

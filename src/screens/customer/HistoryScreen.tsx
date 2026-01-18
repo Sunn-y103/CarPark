@@ -9,51 +9,22 @@ import {
 import { theme } from '../../styles/theme';
 import { commonStyles } from '../../styles/commonStyles';
 
+import { useBooking } from '../../context/BookingContext';
+
 export const HistoryScreen: React.FC = () => {
-  const historyData = [
-    {
-      id: 1,
-      location: 'Mall Plaza Parking',
-      date: 'Today, 2:30 PM - 5:45 PM',
-      duration: '3h 15m',
-      amount: '₹120',
-      status: 'Completed',
-    },
-    {
-      id: 2,
-      location: 'City Center Parking',
-      date: 'Yesterday, 10:00 AM - 12:30 PM',
-      duration: '2h 30m',
-      amount: '₹80',
-      status: 'Completed',
-    },
-    {
-      id: 3,
-      location: 'Metro Station Parking',
-      date: '2 days ago, 9:15 AM - 6:00 PM',
-      duration: '8h 45m',
-      amount: '₹200',
-      status: 'Completed',
-    },
-    {
-      id: 4,
-      location: 'Airport Parking',
-      date: '1 week ago, 6:00 AM - 11:30 PM',
-      duration: '17h 30m',
-      amount: '₹450',
-      status: 'Completed',
-    },
-  ];
+  const { bookings } = useBooking();
+  // Reverse bookings to show newest first
+  const historyData = [...bookings].reverse();
 
   return (
     <SafeAreaView style={commonStyles.safeArea}>
-      <View style={{ 
-        flex: 1, 
+      <View style={{
+        flex: 1,
         padding: theme.spacing.lg,
         paddingTop: theme.spacing.xl + theme.spacing.sm,
         paddingBottom: theme.spacing.xl + theme.spacing.base
       }}>
-        
+
         {/* Header */}
         <View style={{ marginBottom: theme.spacing.lg }}>
           <Text style={[commonStyles.title, { textAlign: 'left' }]}>
@@ -69,7 +40,7 @@ export const HistoryScreen: React.FC = () => {
           <TouchableOpacity
             style={[
               commonStyles.button,
-              { 
+              {
                 flex: 1,
                 marginRight: theme.spacing.xs,
                 paddingVertical: theme.spacing.sm + 2,
@@ -79,11 +50,11 @@ export const HistoryScreen: React.FC = () => {
               All
             </Text>
           </TouchableOpacity>
-          
+
           <TouchableOpacity
             style={[
               commonStyles.socialButton,
-              { 
+              {
                 flex: 1,
                 marginHorizontal: theme.spacing.xs,
                 paddingVertical: theme.spacing.sm + 2,
@@ -93,11 +64,11 @@ export const HistoryScreen: React.FC = () => {
               This Month
             </Text>
           </TouchableOpacity>
-          
+
           <TouchableOpacity
             style={[
               commonStyles.socialButton,
-              { 
+              {
                 flex: 1,
                 marginLeft: theme.spacing.xs,
                 paddingVertical: theme.spacing.sm + 2,
@@ -116,14 +87,14 @@ export const HistoryScreen: React.FC = () => {
               key={item.id}
               style={[
                 commonStyles.socialButton,
-                { 
+                {
                   width: '100%',
                   paddingVertical: theme.spacing.lg,
                   alignItems: 'flex-start',
                   marginBottom: theme.spacing.sm,
                 }
               ]}>
-              
+
               {/* Location and Status */}
               <View style={{
                 flexDirection: 'row',
@@ -192,7 +163,7 @@ export const HistoryScreen: React.FC = () => {
         {/* Summary */}
         <View style={[
           commonStyles.socialButton,
-          { 
+          {
             width: '100%',
             paddingVertical: theme.spacing.lg,
             alignItems: 'center',
