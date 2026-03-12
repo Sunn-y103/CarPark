@@ -12,7 +12,7 @@ export interface UserProfile {
   isActive: boolean;
 }
 
-export type ActivityType = 
+export type ActivityType =
   | 'login'
   | 'logout'
   | 'register'
@@ -63,6 +63,9 @@ export interface ParkingHistory {
   paymentStatus: 'pending' | 'paid' | 'failed' | 'refunded';
   createdAt: FirebaseFirestoreTypes.Timestamp;
   updatedAt: FirebaseFirestoreTypes.Timestamp;
+  metadata?: {
+    [key: string]: any;
+  };
 }
 
 export interface WalletTransaction {
@@ -89,12 +92,52 @@ export interface UserAnalytics {
   updatedAt: FirebaseFirestoreTypes.Timestamp;
 }
 
+export interface ParkingLocation {
+  id: string;
+  title: string;
+  ownerId: string;
+  latitude: number;
+  longitude: number;
+  hourlyRate: number;
+  totalSpots: number;
+  availableSpots: number;
+  images: string[];
+  createdAt: FirebaseFirestoreTypes.FieldValue | FirebaseFirestoreTypes.Timestamp;
+}
+
+export interface Slot {
+  id: string;
+  locationId: string;
+  slotNumber: number;
+  isAvailable: boolean;
+  currentBookingId: string | null;
+  createdAt: FirebaseFirestoreTypes.FieldValue | FirebaseFirestoreTypes.Timestamp;
+}
+
+export interface NewBooking {
+  id: string;
+  userId: string;
+  locationId: string;
+  slotId: string;
+  slotNumber: number;
+  qrId: string;
+  status: 'booked' | 'checked_in' | 'completed' | 'cancelled';
+  hourlyRate: number;
+  totalAmount: number;
+  selectedTimeSlots: string[];
+  selectedDate: string;
+  createdAt: FirebaseFirestoreTypes.FieldValue | FirebaseFirestoreTypes.Timestamp;
+}
+
 export const COLLECTIONS = {
   USERS: 'users',
   USER_ACTIVITIES: 'userActivities',
   PARKING_HISTORY: 'parkingHistory',
   WALLET_TRANSACTIONS: 'walletTransactions',
   USER_ANALYTICS: 'userAnalytics',
+  PARKING_LOCATIONS: 'parkingLocations',
+  SLOTS: 'slots',
+  BOOKINGS: 'bookings',
 } as const;
 export interface CreateActivityData {
   userId: string;

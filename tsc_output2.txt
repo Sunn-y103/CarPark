@@ -1,0 +1,13 @@
+﻿ExampleUsage.tsx(9,36): error TS2307: Cannot find module './CustomBottomNavigation' or its corresponding type declarations.
+functions/src/index.ts(10,32): error TS2307: Cannot find module 'firebase-functions' or its corresponding type declarations.
+functions/src/index.ts(11,25): error TS2307: Cannot find module 'firebase-functions/https' or its corresponding type declarations.
+functions/src/index.ts(12,25): error TS2307: Cannot find module 'firebase-functions/logger' or its corresponding type declarations.
+src/components/ForgotPasswordScreen.tsx(79,47): error TS2345: Argument of type '(value: unknown) => void' is not assignable to parameter of type '() => void'.
+  Target signature provides too few arguments. Expected 1 or more, but got 0.
+src/services/RoleNavigationService.ts(65,11): error TS2774: This condition will always return true since this function is always defined. Did you mean to call it instead?
+src/services/RoleNavigationService.ts(83,11): error TS2774: This condition will always return true since this function is always defined. Did you mean to call it instead?
+src/services/RoleNavigationService.ts(93,11): error TS2774: This condition will always return true since this function is always defined. Did you mean to call it instead?
+src/utils/networkTest.ts(28,7): error TS2353: Object literal may only specify known properties, and 'timeout' does not exist in type 'RequestInit'.
+src/utils/testRoleNavigation.ts(73,11): error TS2774: This condition will always return true since this function is always defined. Did you mean to call it instead?
+src/utils/testRoleNavigation.ts(101,46): error TS2774: This condition will always return true since this function is always defined. Did you mean to call it instead?
+src/utils/testRoleNavigation.ts(108,40): error TS2774: This condition will always return true since this function is always defined. Did you mean to call it instead?

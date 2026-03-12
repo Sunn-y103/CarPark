@@ -15,13 +15,16 @@ import {
   Dimensions,
   Modal,
 } from 'react-native';
-import MapView, { Marker, Circle, Region } from 'react-native-maps';
+import MapView, { Marker, Region } from 'react-native-maps';
 import Geolocation from '@react-native-community/geolocation';
+import auth from '@react-native-firebase/auth';
 import { theme } from '../../styles/theme';
 import { commonStyles } from '../../styles/commonStyles';
 import { NavigationMode } from '../../types';
-import { useBooking } from '../../context/BookingContext';
 import { useWallet } from '../../context/WalletContext';
+import { getAllParkingLocations, listenToParkingLocation, initializeParkingLocations } from '../../services/firestore/parkingLocationsService';
+import { createBookingWithTransaction } from '../../services/bookings/bookingService';
+import { ParkingLocation } from '../../types/firebase';
 
 interface MapsScreenProps {
   mode?: NavigationMode;
@@ -42,16 +45,27 @@ interface ParkingMarker {
   availableSpots: number;
 }
 
+/**
+ * Calculate distance using the Haversine formula (in km).
+ */
+const getDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+  const R = 6371; // Radius of the Earth in km
+  const dLat = (lat2 - lat1) * (Math.PI / 180);
+  const dLon = (lon2 - lon1) * (Math.PI / 180);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+};
+
 export const MapsScreen: React.FC<MapsScreenProps> = ({ mode }) => {
-  // ✅ FIX 1: Add ref to MapView for programmatic control
   const mapRef = useRef<MapView>(null);
-  const { addBooking } = useBooking();
   const { balance, deductFunds } = useWallet();
 
   const [currentLocation, setCurrentLocation] = useState<Location | null>(null);
 
-  // ✅ FIX 2: Use initialRegion instead of region for better performance
-  // ✅ Set initial region to user's area (Kalamboli, India based on previous location)
   const [initialRegion] = useState<Region>({
     latitude: 19.2403,
     longitude: 73.1305,
@@ -76,6 +90,12 @@ export const MapsScreen: React.FC<MapsScreenProps> = ({ mode }) => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [selectedTimeSlots, setSelectedTimeSlots] = useState<string[]>([]);
   const [bookingConfirmed, setBookingConfirmed] = useState(false);
+  const [bookingInProgress, setBookingInProgress] = useState(false);
+  const [confirmedQrId, setConfirmedQrId] = useState<string | null>(null);
+  const [confirmedSlotNumber, setConfirmedSlotNumber] = useState<number | null>(null);
+
+  // Real-time listener cleanup ref
+  const locationListenerRef = useRef<(() => void) | null>(null);
 
   // Parking spot data (Flattened)
   const parkingSpots = [123, 125, 126, 127, 128, 131, 132, 134, 223, 225, 226, 227, 228, 231, 232, 234];
@@ -109,6 +129,43 @@ export const MapsScreen: React.FC<MapsScreenProps> = ({ mode }) => {
     return slots;
   };
 
+  // Convert ParkingLocation to ParkingMarker
+  const locationToMarker = (loc: ParkingLocation): ParkingMarker => ({
+    id: loc.id,
+    coordinate: { latitude: loc.latitude, longitude: loc.longitude },
+    title: loc.title,
+    description: `₹${loc.hourlyRate}/hr • ${loc.availableSpots} spots available`,
+    images: loc.images,
+    hourlyRate: loc.hourlyRate,
+    availableSpots: loc.availableSpots,
+  });
+
+  // Fetch markers from Firestore and optionally filter by 20km radius
+  const fetchMarkersFromFirestore = async (userLoc?: Location) => {
+    try {
+      // Initialize parking locations if they don't exist yet (idempotent)
+      await initializeParkingLocations();
+
+      let locations = await getAllParkingLocations();
+      console.log('📍 Fetched parking locations from Firestore:', locations.length);
+
+      // Filter within 20km radius if user location is provided
+      if (userLoc) {
+        locations = locations.filter(loc => {
+          const dist = getDistance(userLoc.latitude, userLoc.longitude, loc.latitude, loc.longitude);
+          return dist <= 20;
+        });
+        console.log(`📍 Filtered down to ${locations.length} locations within 20km radius.`);
+      }
+
+      const firestoreMarkers = locations.map(locationToMarker);
+      setMarkers(firestoreMarkers);
+    } catch (error) {
+      console.error('Error fetching markers from Firestore:', error);
+      // Fallback: empty markers
+      setMarkers([]);
+    }
+  };
 
   // Request location permission
   const requestLocationPermission = async () => {
@@ -134,7 +191,7 @@ export const MapsScreen: React.FC<MapsScreenProps> = ({ mode }) => {
     return true;
   };
 
-  // ✅ FIX 3: Improved location fetching with better error handling
+  // Improved location fetching with Firestore markers
   const getCurrentLocation = () => {
     console.log('🔍 Requesting current location...');
     setFetchingLocation(true);
@@ -148,7 +205,6 @@ export const MapsScreen: React.FC<MapsScreenProps> = ({ mode }) => {
         console.log('🎯 Setting currentLocation to:', location);
         setCurrentLocation(location);
 
-        // ✅ FIX 4: Use animateToRegion for smooth centering
         if (mapRef.current) {
           mapRef.current.animateToRegion(
             {
@@ -157,21 +213,18 @@ export const MapsScreen: React.FC<MapsScreenProps> = ({ mode }) => {
               latitudeDelta: 0.015,
               longitudeDelta: 0.015,
             },
-            1000, // Animation duration in ms
+            1000,
           );
         }
 
-        // Generate dummy markers around current location
-        generateDummyMarkers(latitude, longitude);
+        // Fetch markers from Firestore with radius filtering
+        fetchMarkersFromFirestore(location);
         setLoading(false);
         setFetchingLocation(false);
       },
       (error) => {
         console.error('❌ Geolocation error:', error);
-        console.error('Error code:', error.code);
-        console.error('Error message:', error.message);
 
-        // Fallback: Use default location (Kalamboli, India)
         const defaultLocation = {
           latitude: 19.2403,
           longitude: 73.1305,
@@ -180,7 +233,6 @@ export const MapsScreen: React.FC<MapsScreenProps> = ({ mode }) => {
         console.log('⚠️ Using default location:', defaultLocation);
         setCurrentLocation(defaultLocation);
 
-        // Animate to default location
         if (mapRef.current) {
           mapRef.current.animateToRegion(
             {
@@ -193,7 +245,7 @@ export const MapsScreen: React.FC<MapsScreenProps> = ({ mode }) => {
           );
         }
 
-        generateDummyMarkers(defaultLocation.latitude, defaultLocation.longitude);
+        fetchMarkersFromFirestore(defaultLocation);
         setLoading(false);
         setFetchingLocation(false);
 
@@ -204,68 +256,11 @@ export const MapsScreen: React.FC<MapsScreenProps> = ({ mode }) => {
         );
       },
       {
-        enableHighAccuracy: true, // ✅ Try high accuracy first
-        timeout: 30000, // Increased timeout
-        maximumAge: 10000, // Allow cached location
+        enableHighAccuracy: true,
+        timeout: 30000,
+        maximumAge: 10000,
       },
     );
-  };
-
-  // Generate four dummy markers around current location
-  const generateDummyMarkers = (lat: number, lng: number) => {
-    const offset = 0.003; // Approximately 330 meters (increased for better visibility)
-    const dummyMarkers: ParkingMarker[] = [
-      {
-        id: '1',
-        coordinate: { latitude: lat + offset, longitude: lng },
-        title: 'Sumit Parking Spot',
-        description: '₹50/hr • 5 spots available',
-        images: [
-          'https://images.unsplash.com/photo-1621929747188-0b4dc28498d2?fm=jpg&q=60&w=3000&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8M3x8cGFya2luZ3xlbnwwfHwwfHx8MA%3D%3D',
-          'https://t4.ftcdn.net/jpg/03/30/78/85/360_F_330788577_0DDjwHh2WYlf4DQJt5d0eMqzMZ9mMy4C.jpg',
-        ],
-        hourlyRate: 50,
-        availableSpots: 5,
-      },
-      {
-        id: '2',
-        coordinate: { latitude: lat - offset, longitude: lng },
-        title: 'Hari Parking Spot',
-        description: '₹40/hr • 3 spots available',
-        images: [
-          'https://images.unsplash.com/photo-1506521781263-d8422e82f27a?fm=jpg&q=60&w=3000&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8cGFya2luZ3xlbnwwfHwwfHx8MA%3D%3D',
-          'https://images.unsplash.com/photo-1616363088386-31c4a8414858?fm=jpg&q=60&w=3000&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8NHx8cGFya2luZ3xlbnwwfHwwfHx8MA%3D%3D',
-        ],
-        hourlyRate: 40,
-        availableSpots: 3,
-      },
-      {
-        id: '3',
-        coordinate: { latitude: lat, longitude: lng + offset },
-        title: 'Raj Parking Spot',
-        description: '₹60/hr • 8 spots available',
-        images: [
-          'https://images.unsplash.com/photo-1621929747188-0b4dc28498d2?fm=jpg&q=60&w=3000&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8M3x8cGFya2luZ3xlbnwwfHwwfHx8MA%3D%3D',
-          'https://t4.ftcdn.net/jpg/03/30/78/85/360_F_330788577_0DDjwHh2WYlf4DQJt5d0eMqzMZ9mMy4C.jpg',
-        ],
-        hourlyRate: 60,
-        availableSpots: 8,
-      },
-      {
-        id: '4',
-        coordinate: { latitude: lat, longitude: lng - offset },
-        title: 'Rohit Parking Spot',
-        description: '₹45/hr • 2 spots available',
-        images: [
-          'https://images.unsplash.com/photo-1506521781263-d8422e82f27a?fm=jpg&q=60&w=3000&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8cGFya2luZ3xlbnwwfHwwfHx8MA%3D%3D',
-          'https://images.unsplash.com/photo-1616363088386-31c4a8414858?fm=jpg&q=60&w=3000&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8NHx8cGFya2luZ3xlbnwwfHwwfHx8MA%3D%3D',
-        ],
-        hourlyRate: 45,
-        availableSpots: 2,
-      },
-    ];
-    console.log('📍 Generated markers:', dummyMarkers.length);
-    setMarkers(dummyMarkers);
   };
 
   // Bottom sheet functions
@@ -273,6 +268,26 @@ export const MapsScreen: React.FC<MapsScreenProps> = ({ mode }) => {
     console.log('🔵 Opening bottom sheet for:', marker.title);
     setSelectedParking(marker);
     setBottomSheetVisible(true);
+
+    // Start real-time listener for this parking location
+    if (locationListenerRef.current) {
+      locationListenerRef.current(); // Unsubscribe previous
+    }
+    locationListenerRef.current = listenToParkingLocation(marker.id, (updatedLocation) => {
+      if (updatedLocation) {
+        // Update the selected parking's available spots in real-time
+        setSelectedParking(prev => prev ? {
+          ...prev,
+          availableSpots: updatedLocation.availableSpots,
+          description: `₹${updatedLocation.hourlyRate}/hr • ${updatedLocation.availableSpots} spots available`,
+        } : null);
+        // Also update in the markers list
+        setMarkers(prevMarkers => prevMarkers.map(m =>
+          m.id === updatedLocation.id ? locationToMarker(updatedLocation) : m
+        ));
+      }
+    });
+
     Animated.spring(bottomSheetAnim, {
       toValue: 1,
       useNativeDriver: true,
@@ -282,6 +297,12 @@ export const MapsScreen: React.FC<MapsScreenProps> = ({ mode }) => {
   };
 
   const closeBottomSheet = () => {
+    // Cleanup real-time listener
+    if (locationListenerRef.current) {
+      locationListenerRef.current();
+      locationListenerRef.current = null;
+    }
+
     Animated.timing(bottomSheetAnim, {
       toValue: 0,
       duration: 250,
@@ -291,8 +312,6 @@ export const MapsScreen: React.FC<MapsScreenProps> = ({ mode }) => {
       setSelectedParking(null);
     });
   };
-
-
 
   // PanResponder for swipe-to-close gesture
   const panResponder = useRef(
@@ -337,6 +356,13 @@ export const MapsScreen: React.FC<MapsScreenProps> = ({ mode }) => {
     };
 
     initLocation();
+
+    // Cleanup listener on unmount
+    return () => {
+      if (locationListenerRef.current) {
+        locationListenerRef.current();
+      }
+    };
   }, []);
 
   // Debug: Log when currentLocation changes
@@ -348,7 +374,7 @@ export const MapsScreen: React.FC<MapsScreenProps> = ({ mode }) => {
     }
   }, [currentLocation]);
 
-  // ✅ FIX 5: Enhanced "Use Current Location" with loading state
+  // "Use Current Location" handler
   const handleUseCurrentLocation = () => {
     console.log('🔄 Fetching fresh location...');
     setFetchingLocation(true);
@@ -361,7 +387,6 @@ export const MapsScreen: React.FC<MapsScreenProps> = ({ mode }) => {
 
         setCurrentLocation(location);
 
-        // Animate to new location
         if (mapRef.current) {
           mapRef.current.animateToRegion(
             {
@@ -374,15 +399,14 @@ export const MapsScreen: React.FC<MapsScreenProps> = ({ mode }) => {
           );
         }
 
-        // Regenerate markers around new location
-        generateDummyMarkers(latitude, longitude);
+        // Re-fetch markers from Firestore
+        fetchMarkersFromFirestore(location);
         setFetchingLocation(false);
       },
       (error) => {
         console.error('❌ Error fetching live location:', error);
         setFetchingLocation(false);
 
-        // If we have a cached location, use it
         if (currentLocation && mapRef.current) {
           mapRef.current.animateToRegion(
             {
@@ -403,9 +427,69 @@ export const MapsScreen: React.FC<MapsScreenProps> = ({ mode }) => {
       {
         enableHighAccuracy: true,
         timeout: 30000,
-        maximumAge: 5000, // Allow slightly cached location
+        maximumAge: 5000,
       },
     );
+  };
+
+  // Handle booking confirmation with Firestore transaction
+  const handleConfirmBooking = async () => {
+    if (!selectedSpot || !selectedParking) return;
+
+    const totalAmount = (selectedParking.hourlyRate || 0) * selectedTimeSlots.length;
+
+    if (balance < totalAmount) {
+      Alert.alert('Insufficient Funds', 'Please add money to your wallet to continue.');
+      return;
+    }
+
+    setBookingInProgress(true);
+
+    try {
+      const currentUser = auth().currentUser;
+      if (!currentUser) {
+        Alert.alert('Error', 'You must be logged in to book a parking spot.');
+        setBookingInProgress(false);
+        return;
+      }
+
+      // Run Firestore transaction FIRST (safer approach — wallet deduction only on success)
+      const result = await createBookingWithTransaction(
+        currentUser.uid,
+        selectedParking.id,
+        selectedParking.hourlyRate,
+        totalAmount,
+        selectedTimeSlots,
+        selectedDate.toISOString(),
+      );
+
+      // Transaction succeeded — now deduct wallet funds
+      const walletSuccess = deductFunds(totalAmount, `Parking at ${selectedParking.title}`);
+
+      if (!walletSuccess) {
+        // This shouldn't normally happen since we checked balance above,
+        // but handle gracefully
+        console.warn('Wallet deduction failed after successful booking transaction');
+      }
+
+      // Store booking result for QR display
+      setConfirmedQrId(result.qrId);
+      setConfirmedSlotNumber(result.slotNumber);
+
+      setTimeSlotVisible(false);
+      setBookingConfirmed(true);
+      setBookingInProgress(false);
+
+    } catch (error: any) {
+      setBookingInProgress(false);
+
+      if (error.message === 'No spots available') {
+        Alert.alert('No Spots Available', 'All parking spots at this location are currently occupied. Please try another location.');
+      } else {
+        console.error('Booking error:', error);
+        Alert.alert('Booking Failed', 'An error occurred while processing your booking. Please try again.');
+      }
+    }
   };
 
   return (
@@ -495,9 +579,7 @@ export const MapsScreen: React.FC<MapsScreenProps> = ({ mode }) => {
               pitchEnabled={true}
               rotateEnabled={true}>
 
-
-
-              {/* ✅ Custom Blue Dot Marker - Enhanced Visibility */}
+              {/* Custom Blue Dot Marker */}
               {currentLocation && (
                 <Marker
                   coordinate={currentLocation}
@@ -511,7 +593,7 @@ export const MapsScreen: React.FC<MapsScreenProps> = ({ mode }) => {
                       width: 20,
                       height: 20,
                       borderRadius: 10,
-                      backgroundColor: '#4285F4', // Google Maps blue
+                      backgroundColor: '#4285F4',
                       borderWidth: 3,
                       borderColor: '#FFFFFF',
                       shadowColor: '#000000',
@@ -1101,7 +1183,7 @@ export const MapsScreen: React.FC<MapsScreenProps> = ({ mode }) => {
             {/* Total Price & Confirm */}
             <View style={{
               position: 'absolute',
-              bottom: -80, // Adjust for absolute positioning context
+              bottom: -80,
               left: 0,
               right: 0,
               padding: 20,
@@ -1117,39 +1199,21 @@ export const MapsScreen: React.FC<MapsScreenProps> = ({ mode }) => {
               </View>
 
               <TouchableOpacity
-                disabled={selectedTimeSlots.length === 0}
-                onPress={() => {
-                  if (selectedSpot && selectedParking) {
-                    const totalAmount = (selectedParking.hourlyRate || 0) * selectedTimeSlots.length;
-
-                    if (balance >= totalAmount) {
-                      const success = deductFunds(totalAmount, `Parking at ${selectedParking.title}`);
-
-                      if (success) {
-                        addBooking({
-                          location: selectedParking.title,
-                          date: `${selectedDate.toLocaleDateString()} ${selectedTimeSlots.length > 0 ? generateTimeSlots().find(s => s.id === selectedTimeSlots[0])?.label : ''}`,
-                          duration: `${selectedTimeSlots.length}h`,
-                          amount: `₹${totalAmount}`,
-                          status: 'Active',
-                          spotNumber: selectedSpot,
-                        });
-                        setTimeSlotVisible(false);
-                        setBookingConfirmed(true);
-                      }
-                    } else {
-                      Alert.alert('Insufficient Funds', 'Please add money to your wallet to continue.');
-                    }
-                  }
-                }}
+                disabled={selectedTimeSlots.length === 0 || bookingInProgress}
+                onPress={handleConfirmBooking}
                 style={{
-                  backgroundColor: selectedTimeSlots.length > 0 ? '#34A853' : '#CCCCCC',
+                  backgroundColor: selectedTimeSlots.length > 0 && !bookingInProgress ? '#34A853' : '#CCCCCC',
                   paddingVertical: 18,
                   borderRadius: 12,
                   alignItems: 'center',
+                  flexDirection: 'row',
+                  justifyContent: 'center',
                 }}>
+                {bookingInProgress && (
+                  <ActivityIndicator size="small" color="#FFFFFF" style={{ marginRight: 8 }} />
+                )}
                 <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#FFFFFF' }}>
-                  Confirm Booking
+                  {bookingInProgress ? 'Booking...' : 'Confirm Booking'}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -1157,6 +1221,8 @@ export const MapsScreen: React.FC<MapsScreenProps> = ({ mode }) => {
           </View>
         </SafeAreaView>
       </Modal>
+
+      {/* Booking Confirmed Modal with QR Code */}
       <Modal
         visible={bookingConfirmed}
         animationType="slide"
@@ -1182,7 +1248,7 @@ export const MapsScreen: React.FC<MapsScreenProps> = ({ mode }) => {
             </Text>
 
             <Text style={{ fontSize: 18, color: '#666666', marginBottom: 32 }}>
-              Your Parking Slot: <Text style={{ fontWeight: 'bold', color: '#1A1A1A' }}>{selectedSpot}</Text>
+              Your Parking Slot: <Text style={{ fontWeight: 'bold', color: '#1A1A1A' }}>{confirmedSlotNumber || selectedSpot}</Text>
             </Text>
 
             <View style={{
@@ -1198,7 +1264,7 @@ export const MapsScreen: React.FC<MapsScreenProps> = ({ mode }) => {
             }}>
               <Image
                 source={{
-                  uri: 'https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=ParkingBookingConfirmed',
+                  uri: `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${confirmedQrId || 'ParkingBookingConfirmed'}`,
                 }}
                 style={{ width: 250, height: 250 }}
                 resizeMode="contain"
@@ -1218,6 +1284,8 @@ export const MapsScreen: React.FC<MapsScreenProps> = ({ mode }) => {
                 setSelectedSpot(null);
                 setSelectedTimeSlots([]);
                 setSelectedDate(new Date());
+                setConfirmedQrId(null);
+                setConfirmedSlotNumber(null);
               }}
               style={{
                 backgroundColor: '#2C2C2C',
@@ -1239,7 +1307,7 @@ export const MapsScreen: React.FC<MapsScreenProps> = ({ mode }) => {
 
           </View>
         </SafeAreaView>
-      </Modal >
-    </SafeAreaView >
+      </Modal>
+    </SafeAreaView>
   );
 };

@@ -10,9 +10,11 @@ import { OwnerDashboardScreen } from '../screens/owner/OwnerDashboardScreen';
 import { ParkingManagementScreen } from '../screens/owner/ParkingManagementScreen';
 import { BookingRequestsScreen } from '../screens/owner/BookingRequestsScreen';
 import { OwnerProfileScreen } from '../screens/owner/OwnerProfileScreen';
+import { OwnerScannerScreen } from '../screens/owner/OwnerScannerScreen';
 import OwnerBottomNavigation from './OwnerBottomNavigation';
 
-type TabType = 'dashboard' | 'parking' | 'bookings' | 'revenue' | 'profile';
+type TabType = 'dashboard' | 'parking' | 'bookings' | 'revenue' | 'profile' | 'scanner';
+
 
 interface OwnerBottomTabNavigationProps {
   onLogout: () => void;
@@ -37,14 +39,19 @@ export const OwnerBottomTabNavigation: React.FC<OwnerBottomTabNavigationProps> =
     setActiveTab(tabId as TabType);
   };
 
+  const handleNavigateToScanner = () => {
+    setActiveTab('scanner');
+  };
+
   const renderScreen = () => {
     switch (activeTab) {
       case 'dashboard':
         return (
-          <OwnerDashboardScreen 
+          <OwnerDashboardScreen
             onNavigateToManagement={handleNavigateToManagement}
             onNavigateToBookings={handleNavigateToBookings}
             onNavigateToRevenue={handleNavigateToRevenue}
+            onNavigateToScanner={handleNavigateToScanner}
           />
         );
       case 'parking':
@@ -55,12 +62,15 @@ export const OwnerBottomTabNavigation: React.FC<OwnerBottomTabNavigationProps> =
         return <RevenueScreen />;
       case 'profile':
         return <OwnerProfileScreen onLogout={onLogout} />;
+      case 'scanner':
+        return <OwnerScannerScreen onGoBack={() => setActiveTab('dashboard')} />;
       default:
         return (
-          <OwnerDashboardScreen 
+          <OwnerDashboardScreen
             onNavigateToManagement={handleNavigateToManagement}
             onNavigateToBookings={handleNavigateToBookings}
             onNavigateToRevenue={handleNavigateToRevenue}
+            onNavigateToScanner={handleNavigateToScanner}
           />
         );
     }

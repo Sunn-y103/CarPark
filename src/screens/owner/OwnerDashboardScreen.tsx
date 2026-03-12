@@ -20,12 +20,14 @@ interface OwnerDashboardScreenProps {
   onNavigateToManagement?: () => void;
   onNavigateToBookings?: () => void;
   onNavigateToRevenue?: () => void;
+  onNavigateToScanner?: () => void;
 }
 
 export const OwnerDashboardScreen: React.FC<OwnerDashboardScreenProps> = ({
   onNavigateToManagement,
   onNavigateToBookings,
   onNavigateToRevenue,
+  onNavigateToScanner,
 }) => {
   const { owner, isLoading } = useOwnerProfile();
   const [dashboardStats, setDashboardStats] = useState({
@@ -56,6 +58,9 @@ export const OwnerDashboardScreen: React.FC<OwnerDashboardScreenProps> = ({
       case 'revenue':
         onNavigateToRevenue?.();
         break;
+      case 'scanner':
+        onNavigateToScanner?.();
+        break;
       default:
         Alert.alert('Feature', `${action} feature will be implemented here`);
     }
@@ -63,7 +68,7 @@ export const OwnerDashboardScreen: React.FC<OwnerDashboardScreenProps> = ({
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView 
+      <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
@@ -76,8 +81,8 @@ export const OwnerDashboardScreen: React.FC<OwnerDashboardScreenProps> = ({
             </Text>
           </View>
           <TouchableOpacity style={styles.notificationButton}>
-            <Image 
-              source={require('../../assets/Notifications.png')} 
+            <Image
+              source={require('../../assets/Notifications.png')}
               style={styles.notificationIcon}
             />
             <View style={styles.notificationBadge}>
@@ -119,48 +124,59 @@ export const OwnerDashboardScreen: React.FC<OwnerDashboardScreenProps> = ({
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Quick Actions</Text>
           <View style={styles.quickActionsContainer}>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.quickActionCard}
               onPress={() => handleQuickAction('management')}
             >
-              <Image 
+              <Image
                 source={require('../../assets/Parking.png')}
                 style={styles.quickActionIcon}
               />
               <Text style={styles.quickActionText}>Manage Parking</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.quickActionCard}
               onPress={() => handleQuickAction('bookings')}
             >
-              <Image 
-                source={require('../../assets/Book_In_Advance.png')} 
+              <Image
+                source={require('../../assets/Book_In_Advance.png')}
                 style={styles.quickActionIcon}
               />
               <Text style={styles.quickActionText}>View Bookings</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.quickActionCard}
               onPress={() => handleQuickAction('revenue')}
             >
-              <Image 
-                source={require('../../assets/wallet.png')} 
+              <Image
+                source={require('../../assets/wallet.png')}
                 style={styles.quickActionIcon}
               />
               <Text style={styles.quickActionText}>Revenue Report</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.quickActionCard}
               onPress={() => handleQuickAction('settings')}
             >
-              <Image 
-                source={require('../../assets/userprofile.png')} 
+              <Image
+                source={require('../../assets/userprofile.png')}
                 style={styles.quickActionIcon}
               />
               <Text style={styles.quickActionText}>Settings</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.quickActionCard}
+              onPress={() => handleQuickAction('scanner')}
+            >
+              <Image
+                source={require('../../assets/Find_Parking.png')}
+                style={styles.quickActionIcon}
+              />
+              <Text style={styles.quickActionText}>Scan QR</Text>
             </TouchableOpacity>
           </View>
         </View>

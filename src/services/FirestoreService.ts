@@ -1,14 +1,14 @@
 import firestore, { FirebaseFirestoreTypes } from '@react-native-firebase/firestore';
 import { Platform } from 'react-native';
-import { 
-  UserProfile, 
-  UserActivity, 
-  ParkingHistory, 
-  WalletTransaction, 
+import {
+  UserProfile,
+  UserActivity,
+  ParkingHistory,
+  WalletTransaction,
   UserAnalytics,
-  ActivityType, 
-  CreateActivityData, 
-  COLLECTIONS 
+  ActivityType,
+  CreateActivityData,
+  COLLECTIONS
 } from '../types/firebase';
 import FirebaseConfig from '../config/firebase';
 
@@ -35,9 +35,9 @@ class FirestoreService {
     try {
       const userRef = this.firestore.collection(COLLECTIONS.USERS).doc(userProfile.id);
       const userDoc = await userRef.get();
-      
+
       const timestamp = firestore.Timestamp.now();
-      
+
       if (userDoc.exists()) {
         await userRef.update({
           ...userProfile,
@@ -59,11 +59,11 @@ class FirestoreService {
   async getUserProfile(userId: string): Promise<UserProfile | null> {
     try {
       const userDoc = await this.firestore.collection(COLLECTIONS.USERS).doc(userId).get();
-      
+
       if (userDoc.exists()) {
         return { id: userDoc.id, ...userDoc.data() } as UserProfile;
       }
-      
+
       return null;
     } catch (error) {
       console.error('Error getting user profile:', error);
@@ -80,9 +80,9 @@ class FirestoreService {
     try {
       const customerRef = this.firestore.collection('customerProfiles').doc(customerData.userId);
       const customerDoc = await customerRef.get();
-      
+
       const timestamp = firestore.Timestamp.now();
-      
+
       if (customerDoc.exists()) {
         await customerRef.update({
           ...customerData,
@@ -104,11 +104,11 @@ class FirestoreService {
   async getCustomerProfile(userId: string): Promise<any | null> {
     try {
       const customerDoc = await this.firestore.collection('customerProfiles').doc(userId).get();
-      
+
       if (customerDoc.exists()) {
         return { id: customerDoc.id, ...customerDoc.data() };
       }
-      
+
       return null;
     } catch (error) {
       console.error('Error getting customer profile:', error);
@@ -132,9 +132,9 @@ class FirestoreService {
     try {
       const ownerRef = this.firestore.collection('ownerProfiles').doc(ownerData.userId);
       const ownerDoc = await ownerRef.get();
-      
+
       const timestamp = firestore.Timestamp.now();
-      
+
       if (ownerDoc.exists()) {
         await ownerRef.update({
           ...ownerData,
@@ -156,11 +156,11 @@ class FirestoreService {
   async getOwnerProfile(userId: string): Promise<any | null> {
     try {
       const ownerDoc = await this.firestore.collection('ownerProfiles').doc(userId).get();
-      
+
       if (ownerDoc.exists()) {
         return { id: ownerDoc.id, ...ownerDoc.data() };
       }
-      
+
       return null;
     } catch (error) {
       console.error('Error getting owner profile:', error);
@@ -188,8 +188,8 @@ class FirestoreService {
   }
 
   async getUserActivities(
-    userId: string, 
-    limit: number = 20, 
+    userId: string,
+    limit: number = 20,
     lastActivity?: UserActivity
   ): Promise<UserActivity[]> {
     try {
@@ -204,7 +204,7 @@ class FirestoreService {
       }
 
       const snapshot = await query.get();
-      
+
       return snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
@@ -283,6 +283,39 @@ class FirestoreService {
     }
   }
 
+  // Real-time listener for valid active booking
+  listenToBooking(bookingId: string, callback: (booking: ParkingHistory | null) => void): () => void {
+    const unsubscribe = this.firestore
+      .collection(COLLECTIONS.PARKING_HISTORY)
+      .doc(bookingId)
+      .onSnapshot(
+        (doc) => {
+          if (doc.exists()) {
+            callback({ id: doc.id, ...doc.data() } as ParkingHistory);
+          } else {
+            callback(null);
+          }
+        },
+        (error) => {
+          console.error('Error listening to booking:', error);
+        }
+      );
+    return unsubscribe;
+  }
+
+  // Update booking status safely
+  async updateBookingStatus(bookingId: string, updates: Partial<ParkingHistory>): Promise<void> {
+    try {
+      await this.firestore.collection(COLLECTIONS.PARKING_HISTORY).doc(bookingId).update({
+        ...updates,
+        updatedAt: firestore.Timestamp.now(),
+      });
+    } catch (error) {
+      console.error('Error updating booking status:', error);
+      throw error;
+    }
+  }
+
   async createWalletTransaction(transactionData: Omit<WalletTransaction, 'id'>): Promise<string> {
     try {
       const docRef = await this.firestore.collection(COLLECTIONS.WALLET_TRANSACTIONS).add(transactionData);
@@ -315,7 +348,7 @@ class FirestoreService {
   async updateUserAnalytics(userId: string, analytics: Partial<UserAnalytics>): Promise<void> {
     try {
       const analyticsRef = this.firestore.collection(COLLECTIONS.USER_ANALYTICS).doc(userId);
-      
+
       await analyticsRef.set({
         userId,
         ...analytics,
@@ -330,11 +363,11 @@ class FirestoreService {
   async getUserAnalytics(userId: string): Promise<UserAnalytics | null> {
     try {
       const doc = await this.firestore.collection(COLLECTIONS.USER_ANALYTICS).doc(userId).get();
-      
+
       if (doc.exists()) {
         return { id: doc.id, ...doc.data() } as UserAnalytics;
       }
-      
+
       return null;
     } catch (error) {
       console.error('Error getting user analytics:', error);

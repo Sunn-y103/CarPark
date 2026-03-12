@@ -20,8 +20,8 @@ interface HomeScreenProps {
 
 export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToMaps }) => {
   const { user: profileUser } = useUserProfile();
-  const [activeBooking, setActiveBooking] = useState<Booking | null>(null);
-  
+  const [activeBooking, setActiveBooking] = useState<any | null>(null);
+
   // Track user profile changes for debugging
   useEffect(() => {
     if (profileUser) {
@@ -32,7 +32,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToMaps }) => {
       });
     }
   }, [profileUser]);
-  
+
   const user = profileUser || {
     id: '1',
     name: 'User',
@@ -40,70 +40,118 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToMaps }) => {
   };
   const [showQRModal, setShowQRModal] = useState(false);
 
+  // Monitor active booking for status changes (Check-in / Check-out)
+  useEffect(() => {
+    if (!activeBooking?.id) return;
+
+    const unsubscribe = import('../../services/FirestoreService').then(({ default: FirestoreService }) => {
+      return FirestoreService.getInstance().listenToBooking(activeBooking.id, (updatedBooking) => {
+        if (updatedBooking) {
+          console.log('Booking Update:', updatedBooking);
+          // Check if status changed or check-in status changed
+          const isCheckedIn = updatedBooking.metadata?.isCheckedIn;
+          const isCompleted = updatedBooking.status === 'completed';
+
+          setActiveBooking((prev: any) => ({
+            ...prev,
+            ...updatedBooking,
+            qrCodeValid: !isCompleted && !isCheckedIn // QR valid only if NOT checked in and NOT completed
+          }));
+
+          if (isCheckedIn && !activeBooking.metadata?.isCheckedIn) {
+            Alert.alert('Check-in Confirmed', 'You have successfully checked in!');
+          }
+
+          if (isCompleted && activeBooking.status !== 'completed') {
+            Alert.alert('Check-out Confirmed', 'Your parking session has ended. Have a safe drive!');
+            setShowQRModal(false); // Close QR modal on checkout
+          }
+        }
+      });
+    });
+
+    return () => {
+      unsubscribe.then(unsub => unsub && unsub());
+    };
+  }, [activeBooking?.id]);
+
   const simulateBookingProcess = async () => {
     if (!user) {
       Alert.alert('Error', 'Please log in to make a booking.');
       return;
     }
-    
+
     try {
       Alert.alert('Processing Payment', 'Please wait while we process your payment...');
-      
-      setTimeout(() => {
-        const mockBooking: Booking = {
-          id: Date.now().toString(),
-          userId: user.id,
-          slotId: 'slot-001',
-          vehicleId: 'vehicle-001',
-          startTime: new Date(),
-          endTime: new Date(Date.now() + 2 * 60 * 60 * 1000),
-          totalAmount: 120,
-          status: 'confirmed',
-          qrCode: 'QR_CODE_DATA_HERE',
-          qrCodeValid: true,
-          paymentStatus: 'completed',
-        };
-        
-        setActiveBooking(mockBooking);
-        Alert.alert('Booking Confirmed!', `Hi ${user.name.split(' ')[0]}! Your parking slot has been reserved. QR code is now visible in the header.`, [
-          { text: 'View QR Code', onPress: () => setShowQRModal(true) },
-          { text: 'OK' },
-        ]);
-      }, 2000);
+
+      const FirestoreService = (await import('../../services/FirestoreService')).default;
+
+      // Create REAL Firestore Booking
+      const newBookingId = await FirestoreService.getInstance().createParkingHistory({
+        userId: user.id,
+        parkingSpotId: 'slot-001', // Mock slot
+        parkingSpotName: 'Central Mall Parking',
+        address: '123 Mall Road',
+        startTime: new Date() as any, // Firestore Timestamp conversion handled by service if needed, or simple date
+        cost: 120,
+        status: 'active',
+        paymentStatus: 'paid',
+        metadata: {
+          isCheckedIn: false,
+          vehicleId: 'vehicle-001'
+        }
+      } as any); // Cast as any if strict type mismatch on Timestamp vs Date
+
+      setActiveBooking({
+        id: newBookingId,
+        userId: user.id,
+        slotId: 'slot-001',
+        startTime: new Date(),
+        status: 'active',
+        qrCodeValid: true,
+        metadata: { isCheckedIn: false }
+      });
+
+      Alert.alert('Booking Confirmed!', `Hi ${user.name.split(' ')[0]}! Your parking slot has been reserved. QR code is now visible in the header.`, [
+        { text: 'View QR Code', onPress: () => setShowQRModal(true) },
+        { text: 'OK' },
+      ]);
+
     } catch (error) {
+      console.error(error);
       Alert.alert('Booking Failed', 'There was an error processing your booking. Please try again.');
     }
   };
   return (
     <SafeAreaView style={commonStyles.safeArea}>
       <ScrollView
-        contentContainerStyle={{ 
-          flexGrow: 1, 
+        contentContainerStyle={{
+          flexGrow: 1,
           padding: theme.spacing.lg,
           paddingTop: theme.spacing.lg + theme.spacing.sm,
           paddingBottom: theme.spacing.xl + theme.spacing.base
         }}
         showsVerticalScrollIndicator={false}>
-        
-        <View style={{ 
+
+        <View style={{
           alignItems: 'flex-start',
           marginBottom: theme.spacing.sm
         }}>
-          <Image 
+          <Image
             source={require('../../assets/CarPark_Logo2.png')}
-            style={{ 
-              width: 90, 
+            style={{
+              width: 90,
               height: 90,
-              borderRadius:25, 
+              borderRadius: 25,
               resizeMode: 'contain'
-            }} 
+            }}
           />
         </View>
-        
+
         <View style={[commonStyles.headerContainer, {
-          marginBottom: theme.spacing.lg, 
-          borderBottomWidth: 0, 
-          paddingHorizontal: theme.spacing.base, 
+          marginBottom: theme.spacing.lg,
+          borderBottomWidth: 0,
+          paddingHorizontal: theme.spacing.base,
           paddingVertical: theme.spacing.base,
           backgroundColor: theme.colors.backgroundCard,
           borderRadius: theme.borderRadius.lg,
@@ -114,14 +162,14 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToMaps }) => {
           elevation: 3
         }]}>
           <View style={{ justifyContent: 'center' }}>
-            <Text style={[commonStyles.headerTitle, { 
-              fontSize: theme.typography.fontSizes['2xl'], 
+            <Text style={[commonStyles.headerTitle, {
+              fontSize: theme.typography.fontSizes['2xl'],
               color: theme.colors.text.primary,
               marginBottom: theme.spacing.xs
             }]}>
               Hi {user.name.split(' ')[0]}! 👋
             </Text>
-            <Text style={[commonStyles.headerSubtitle, { 
+            <Text style={[commonStyles.headerSubtitle, {
               color: theme.colors.text.secondary,
               fontSize: theme.typography.fontSizes.sm
             }]}>
@@ -129,9 +177,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToMaps }) => {
             </Text>
           </View>
           {activeBooking && activeBooking.qrCode && (
-            <TouchableOpacity 
+            <TouchableOpacity
               onPress={() => setShowQRModal(true)}
-              style={{ 
+              style={{
                 backgroundColor: activeBooking.qrCodeValid ? theme.colors.success : theme.colors.text.tertiary,
                 borderRadius: 20,
                 padding: theme.spacing.sm,
@@ -151,9 +199,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToMaps }) => {
             color: theme.colors.text.primary,
             marginBottom: theme.spacing.base,
           }}>Available EV Charging Stations</Text>
-          
-          <ScrollView 
-            horizontal 
+
+          <ScrollView
+            horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={{ paddingRight: theme.spacing.lg }}
           >
@@ -164,7 +212,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToMaps }) => {
             ].map((station, index) => (
               <View key={index} style={[
                 commonStyles.card,
-                { 
+                {
                   backgroundColor: theme.colors.backgroundCard,
                   borderLeftWidth: 4,
                   borderLeftColor: theme.colors.success,
@@ -218,7 +266,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToMaps }) => {
               <Text style={{ fontSize: theme.typography.fontSizes.sm, color: theme.colors.text.secondary }}>Available</Text>
             </View>
           </View>
-          
+
           {/* Car illustrations */}
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: theme.spacing.base }}>
             <View style={{ backgroundColor: theme.colors.accent, borderRadius: theme.borderRadius.base, padding: theme.spacing.sm, alignItems: 'center', width: '22%' }}>
@@ -237,7 +285,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToMaps }) => {
         </View>
 
         {/* Continue Button */}
-        <TouchableOpacity 
+        <TouchableOpacity
           onPress={simulateBookingProcess}
           style={[commonStyles.button, { marginBottom: theme.spacing.xl }]}>
           <Text style={[commonStyles.buttonText, { flexDirection: 'row', alignItems: 'center' }]}>Test Booking & QR →</Text>
@@ -251,10 +299,10 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToMaps }) => {
             color: theme.colors.text.primary,
             marginBottom: theme.spacing.base,
           }}>Free parking available</Text>
-          
+
           <View style={[
             commonStyles.card,
-            { 
+            {
               backgroundColor: theme.colors.backgroundCard,
               borderLeftWidth: 4,
               borderLeftColor: theme.colors.success,
@@ -300,7 +348,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToMaps }) => {
             color: theme.colors.text.primary,
             marginBottom: theme.spacing.base,
           }}>Quick Actions</Text>
-          
+
           <View style={{
             flexDirection: 'row',
             flexWrap: 'wrap',
@@ -321,7 +369,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToMaps }) => {
                 <Text style={commonStyles.buttonAccentText}>Find Parking</Text>
               </View>
             </TouchableOpacity>
-            
+
             <TouchableOpacity
               onPress={() => onNavigateToMaps('book')}
               style={[
@@ -350,10 +398,10 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToMaps }) => {
             color: theme.colors.text.primary,
             marginBottom: theme.spacing.base,
           }}>Recent Parking</Text>
-          
+
           <View style={[
             commonStyles.card,
-            { 
+            {
               alignItems: 'flex-start',
             }
           ]}>
@@ -384,10 +432,10 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToMaps }) => {
             color: theme.colors.text.primary,
             marginBottom: theme.spacing.base,
           }}>Nearby Parking</Text>
-          
+
           <TouchableOpacity style={[
             commonStyles.card,
-            { 
+            {
               alignItems: 'flex-start',
               marginBottom: theme.spacing.sm,
             }
@@ -412,7 +460,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToMaps }) => {
 
           <TouchableOpacity style={[
             commonStyles.card,
-            { 
+            {
               alignItems: 'flex-start',
             }
           ]}>
@@ -435,7 +483,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToMaps }) => {
           </TouchableOpacity>
         </View>
       </ScrollView>
-      
+
       {/* QR Code Modal */}
       <Modal
         visible={showQRModal}
@@ -465,7 +513,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToMaps }) => {
               marginBottom: theme.spacing.base,
               textAlign: 'center',
             }}>Parking QR Code</Text>
-            
+
             <View style={{
               width: 200,
               height: 200,
@@ -476,21 +524,28 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToMaps }) => {
               marginBottom: theme.spacing.lg,
               borderWidth: 2,
               borderColor: activeBooking?.qrCodeValid ? theme.colors.success : theme.colors.text.tertiary,
+              overflow: 'hidden'
             }}>
-              <Text style={{
-                fontSize: 48,
-                textAlign: 'center',
-              }}>📦</Text>
-              <Text style={{
-                fontSize: theme.typography.fontSizes.sm,
-                color: theme.colors.text.secondary,
-                textAlign: 'center',
-                marginTop: theme.spacing.xs,
-              }}>
-                {activeBooking?.qrCodeValid ? 'Scan to Check In' : 'QR Code Used'}
-              </Text>
+              {activeBooking?.id ? (
+                <Image
+                  source={{ uri: `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${activeBooking.id}_${activeBooking.userId}_${activeBooking.slotId}` }}
+                  style={{ width: '100%', height: '100%' }}
+                />
+              ) : (
+                <Text style={{ fontSize: 48, textAlign: 'center' }}>📦</Text>
+              )}
+              {!activeBooking?.id && (
+                <Text style={{
+                  fontSize: theme.typography.fontSizes.sm,
+                  color: theme.colors.text.secondary,
+                  textAlign: 'center',
+                  marginTop: theme.spacing.xs,
+                }}>
+                  {activeBooking?.qrCodeValid ? 'Scan to Check In' : 'QR Code Used'}
+                </Text>
+              )}
             </View>
-            
+
             {activeBooking && (
               <View style={{ alignItems: 'center', marginBottom: theme.spacing.base }}>
                 <Text style={{
@@ -508,7 +563,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToMaps }) => {
                 </Text>
               </View>
             )}
-            
+
             <TouchableOpacity
               onPress={() => setShowQRModal(false)}
               style={[

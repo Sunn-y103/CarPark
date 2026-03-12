@@ -25,6 +25,7 @@ export interface ParkingSlot {
   pricePerHour: number;
   type: 'regular' | 'ev_charging' | 'disabled';
   amenities?: string[];
+  locationId?: string;
 }
 
 export interface Booking {

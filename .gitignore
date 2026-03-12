@@ -83,3 +83,7 @@ android/app/build/
 # Keep Firebase configuration files tracked
 !ios/GoogleService-Info.plist
 !android/app/google-services.json
+
+# Environment variables
+.env
+.env.*
