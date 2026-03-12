@@ -11,15 +11,15 @@ The application also supports **EV charging station availability and booking**, 
 
 <table>
 <tr>
-<td><img src="map.jpg" width="220"/></td>
-<td><img src="qr.jpg" width="220"/></td>
-<td><img src="login_page.jpg" width="220"/></td>
+<td><img src="map.jpeg" width="220"/></td>
+<td><img src="qr.jpeg" width="220"/></td>
+<td><img src="login_page.jpeg" width="220"/></td>
 </tr>
 
 <tr>
-<td><img src="customer_home.jpg" width="220"/></td>
-<td><img src="owner.jpg" width="220"/></td>
-<td><img src="wallet.jpg" width="220"/></td>
+<td><img src="customer_home.jpeg" width="220"/></td>
+<td><img src="owner.jpeg" width="220"/></td>
+<td><img src="wallet.jpeg" width="220"/></td>
 </tr>
 </table>
 
