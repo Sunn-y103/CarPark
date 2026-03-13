@@ -1,4 +1,4 @@
-# 🚗 CarPark – Smart Parking Management Mobile Application
+# CarPark – Smart Parking Management Mobile Application
 
 CarPark is a smart parking management mobile application built using **React Native and Node.js**.  
 It helps users find available parking slots nearby, book them instantly, and manage payments digitally.
@@ -7,7 +7,7 @@ The application also supports **EV charging station availability and booking**, 
 
 ---
 
-## 📱 App Screenshots
+## App Screenshots
 
 <table>
 <tr>
@@ -25,7 +25,7 @@ The application also supports **EV charging station availability and booking**, 
 
 ---
 
-## ✨ Features
+## Features
 
 - 🔍 Search available parking slots within **5 km radius**
 - 📍 Real-time parking availability
@@ -37,7 +37,7 @@ The application also supports **EV charging station availability and booking**, 
 
 ---
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 **Frontend**
 - React Native CLI
@@ -54,7 +54,7 @@ The application also supports **EV charging station availability and booking**, 
 - Google Maps API key
 ---
 
-## ⚙️ How It Works
+## How It Works
 
 1. User searches for parking spaces nearby.
 2. Available parking slots are displayed in the app.
@@ -65,7 +65,7 @@ The application also supports **EV charging station availability and booking**, 
 
 ---
 
-## 🚀 Installation
+## Installation
 
 Clone the repository:
 
